@@ -119,7 +119,7 @@ export default function WorkoutLogger() {
               )}
             </div>
 
-            <div className="grid grid-cols-[28px_1fr_1fr_36px_36px] gap-2 text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1 px-1">
+            <div className="grid grid-cols-[28px_1fr_1fr_auto_auto] gap-2 text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1 px-1">
               <div>Set</div>
               <div>Weight</div>
               <div>Reps</div>
@@ -129,7 +129,7 @@ export default function WorkoutLogger() {
 
             <div className="space-y-1.5">
               {ex.sets.map((s, j) => (
-                <div key={j} className={`grid grid-cols-[28px_1fr_1fr_36px_36px] gap-2 items-center rounded-xl px-1 py-1 ${s.completed ? 'bg-xp/10' : ''}`}>
+                <div key={j} className={`grid grid-cols-[28px_1fr_1fr_auto_auto] gap-2 items-center rounded-xl px-1 py-1 ${s.completed ? 'bg-xp/10' : ''}`}>
                   <div className="text-center font-bold text-white/60">{j + 1}</div>
                   <input
                     type="number" min="0" value={s.weight}
