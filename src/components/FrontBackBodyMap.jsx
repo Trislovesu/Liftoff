@@ -8,7 +8,7 @@ import { tierForLevel } from '../lib/tiers.js'
 //                 then "Copy Paths" to copy the new OVERLAYS array onto
 //                 your clipboard so you can paste it back into this file.
 const DEBUG_OVERLAYS = false
-const EDIT_MODE      = false  // ← flip to true to re-open the position editor
+const EDIT_MODE      = true  // ← flip to true to re-open the position editor
 
 // ─── Overlay zones (percent coordinates in a 0–100 viewBox) ──────────────
 const OVERLAYS = [
