@@ -18,50 +18,65 @@ const DEBUG_OVERLAYS = false
 // tapping either selects the same muscle in the rankings list.
 // ──────────────────────────────────────────────────────────────────────────
 const OVERLAYS = [
-  // FRONT figure — left half of the image
-  { muscle: 'Shoulders', d: 'M 14,17 Q 20,18 22,21 Q 23,24 20,26 Q 16,26 14,23 Z' },
-  { muscle: 'Shoulders', d: 'M 36,17 Q 30,18 28,21 Q 27,24 30,26 Q 34,26 36,23 Z' },
+  // ─── FRONT figure (left half of image, center ≈ x:25) ─────────────────
+  // Front deltoids — sit ON the rounded shoulder cap only
+  { muscle: 'Shoulders', d: 'M 15,18 Q 18.5,17 21,18.5 Q 22.5,21 20.5,23.5 Q 17.5,24.5 15,22.5 Z' },
+  { muscle: 'Shoulders', d: 'M 35,18 Q 31.5,17 29,18.5 Q 27.5,21 29.5,23.5 Q 32.5,24.5 35,22.5 Z' },
 
-  { muscle: 'Chest',     d: 'M 18,22 Q 22,21 25,23 L 25,30 Q 22,32 19,31 Q 16,28 17,25 Q 17,23 18,22 Z' },
-  { muscle: 'Chest',     d: 'M 32,22 Q 28,21 25,23 L 25,30 Q 28,32 31,31 Q 34,28 33,25 Q 33,23 32,22 Z' },
+  // Pecs — each half traces a dome over the orange pec
+  { muscle: 'Chest',     d: 'M 18.5,22 Q 21.5,21 24.5,22.5 L 24.5,30 Q 22,31.5 19,31 Q 16.5,28.5 17,25.5 Q 17,23 18.5,22 Z' },
+  { muscle: 'Chest',     d: 'M 31.5,22 Q 28.5,21 25.5,22.5 L 25.5,30 Q 28,31.5 31,31 Q 33.5,28.5 33,25.5 Q 33,23 31.5,22 Z' },
 
-  { muscle: 'Biceps',    d: 'M 12,26 Q 11,30 11,35 Q 12,37 14,37 Q 16,33 16,28 Q 15,26 12,26 Z' },
-  { muscle: 'Biceps',    d: 'M 38,26 Q 39,30 39,35 Q 38,37 36,37 Q 34,33 34,28 Q 35,26 38,26 Z' },
+  // Biceps — tight bicep bulge under the delt
+  { muscle: 'Biceps',    d: 'M 13,25.5 Q 11.5,29 12,34 Q 13.5,35.5 15.5,35 Q 16.5,31 16.5,27.5 Q 15,25 13,25.5 Z' },
+  { muscle: 'Biceps',    d: 'M 37,25.5 Q 38.5,29 38,34 Q 36.5,35.5 34.5,35 Q 33.5,31 33.5,27.5 Q 35,25 37,25.5 Z' },
 
-  { muscle: 'Forearms',  d: 'M 9,38 Q 7,44 8,49 Q 10,51 13,50 Q 14,44 14,38 Q 12,37 9,38 Z' },
-  { muscle: 'Forearms',  d: 'M 41,38 Q 43,44 42,49 Q 40,51 37,50 Q 36,44 36,38 Q 38,37 41,38 Z' },
+  // Forearms — tapered lower arm
+  { muscle: 'Forearms',  d: 'M 10,37 Q 8,42 9,48 Q 11,49.5 13.5,49 Q 14.5,43 14.5,37.5 Q 12.5,36 10,37 Z' },
+  { muscle: 'Forearms',  d: 'M 40,37 Q 42,42 41,48 Q 39,49.5 36.5,49 Q 35.5,43 35.5,37.5 Q 37.5,36 40,37 Z' },
 
-  { muscle: 'Abs',       d: 'M 20,33 Q 22,32 25,32 Q 28,32 30,33 Q 32,40 30,48 Q 25,50 20,48 Q 18,40 20,33 Z' },
+  // Abs — six-pack block, tight to the ab region
+  { muscle: 'Abs',       d: 'M 21,33 Q 25,32 29,33 Q 30.5,40 29.5,47 Q 25,48.5 20.5,47 Q 19.5,40 21,33 Z' },
 
-  { muscle: 'Quads',     d: 'M 19,55 Q 17,62 18,72 Q 21,74 24,73 L 24,56 Q 22,54 19,55 Z' },
-  { muscle: 'Quads',     d: 'M 31,55 Q 33,62 32,72 Q 29,74 26,73 L 26,56 Q 28,54 31,55 Z' },
+  // Quads — each thigh, ends above the knee
+  { muscle: 'Quads',     d: 'M 19,55 Q 16.5,62 18,71 Q 21,72.5 24.5,71.5 L 24.5,56 Q 22,54 19,55 Z' },
+  { muscle: 'Quads',     d: 'M 31,55 Q 33.5,62 32,71 Q 29,72.5 25.5,71.5 L 25.5,56 Q 28,54 31,55 Z' },
 
-  { muscle: 'Calves',    d: 'M 19,76 Q 17,82 19,88 Q 22,89 24,88 L 24,76 Q 21,75 19,76 Z' },
-  { muscle: 'Calves',    d: 'M 31,76 Q 33,82 31,88 Q 28,89 26,88 L 26,76 Q 29,75 31,76 Z' },
+  // Calves — under the knee to mid-shin
+  { muscle: 'Calves',    d: 'M 19.5,76 Q 17.5,81 19.5,86 Q 22,87.5 24.5,86 L 24.5,76 Q 22,75 19.5,76 Z' },
+  { muscle: 'Calves',    d: 'M 30.5,76 Q 32.5,81 30.5,86 Q 28,87.5 25.5,86 L 25.5,76 Q 28,75 30.5,76 Z' },
 
-  // BACK figure — right half of the image
-  { muscle: 'Shoulders', d: 'M 63,17 Q 69,18 71,21 Q 72,24 69,26 Q 65,26 63,23 Z' },
-  { muscle: 'Shoulders', d: 'M 85,17 Q 79,18 77,21 Q 76,24 79,26 Q 83,26 85,23 Z' },
+  // ─── BACK figure (right half of image, center ≈ x:74) ─────────────────
+  // Rear deltoids
+  { muscle: 'Shoulders', d: 'M 64,18 Q 67.5,17 70,18.5 Q 71.5,21 69.5,23.5 Q 66.5,24.5 64,22.5 Z' },
+  { muscle: 'Shoulders', d: 'M 84,18 Q 80.5,17 78,18.5 Q 76.5,21 78.5,23.5 Q 81.5,24.5 84,22.5 Z' },
 
-  // Back muscle = traps + lats + lower back (3 traced regions, all "Back")
-  { muscle: 'Back',      d: 'M 69,17 Q 74,15 79,17 Q 81,22 75,28 Q 69,22 69,17 Z' },
-  { muscle: 'Back',      d: 'M 65,28 Q 74,29 75,29 Q 82,29 84,28 Q 86,40 80,47 Q 74,49 68,47 Q 62,40 65,28 Z' },
-  { muscle: 'Back',      d: 'M 71,47 Q 75,48 79,47 L 79,51 Q 75,53 71,51 Z' },
+  // Back — traps (small diamond between rear delts, lowered to sit on the orange shape)
+  { muscle: 'Back',      d: 'M 73,21 Q 76.5,23 75.5,28 Q 73,29.5 70.5,28 Q 69.5,23 73,21 Z' },
+  // Back — lats (wide V, ends above the lower-back strip — no longer overshoots)
+  { muscle: 'Back',      d: 'M 67,30 Q 73,29 79,30 Q 82.5,36 80.5,42 Q 73,44.5 65.5,42 Q 65,36 67,30 Z' },
+  // Back — lower back (narrow strip just above glutes)
+  { muscle: 'Back',      d: 'M 71,45.5 Q 74.5,46.5 78.5,45.5 L 78.5,50 Q 75,51 71,50 Z' },
 
-  { muscle: 'Triceps',   d: 'M 60,26 Q 59,30 59,35 Q 60,37 62,37 Q 64,33 64,28 Q 63,26 60,26 Z' },
-  { muscle: 'Triceps',   d: 'M 90,26 Q 91,30 91,35 Q 90,37 88,37 Q 86,33 86,28 Q 87,26 90,26 Z' },
+  // Triceps — back of upper arm
+  { muscle: 'Triceps',   d: 'M 60,26 Q 58.5,30 59,34 Q 60.5,35.5 62.5,35 Q 63.5,31 63.5,27.5 Q 62,25.5 60,26 Z' },
+  { muscle: 'Triceps',   d: 'M 90,26 Q 91.5,30 91,34 Q 89.5,35.5 87.5,35 Q 86.5,31 86.5,27.5 Q 88,25.5 90,26 Z' },
 
-  { muscle: 'Forearms',  d: 'M 57,38 Q 55,44 56,49 Q 58,51 61,50 Q 62,44 62,38 Q 60,37 57,38 Z' },
-  { muscle: 'Forearms',  d: 'M 93,38 Q 95,44 94,49 Q 92,51 89,50 Q 88,44 88,38 Q 90,37 93,38 Z' },
+  // Forearms (back)
+  { muscle: 'Forearms',  d: 'M 58,37 Q 56,42 57,48 Q 59,49.5 61.5,49 Q 62.5,43 62.5,37.5 Q 60.5,36 58,37 Z' },
+  { muscle: 'Forearms',  d: 'M 92,37 Q 94,42 93,48 Q 91,49.5 88.5,49 Q 87.5,43 87.5,37.5 Q 89.5,36 92,37 Z' },
 
-  { muscle: 'Glutes',    d: 'M 66,49 Q 70,48 74,49 Q 75,55 74,61 Q 70,63 66,61 Q 64,55 66,49 Z' },
-  { muscle: 'Glutes',    d: 'M 84,49 Q 80,48 76,49 Q 75,55 76,61 Q 80,63 84,61 Q 86,55 84,49 Z' },
+  // Glutes — two cheeks, sit on the orange glute region only
+  { muscle: 'Glutes',    d: 'M 67,51 Q 70.5,49.5 73.5,51 Q 74.5,56.5 73,62 Q 70,63 67,62 Q 65.5,56.5 67,51 Z' },
+  { muscle: 'Glutes',    d: 'M 83,51 Q 79.5,49.5 76.5,51 Q 75.5,56.5 77,62 Q 80,63 83,62 Q 84.5,56.5 83,51 Z' },
 
-  { muscle: 'Hamstrings', d: 'M 66,63 Q 64,70 65,77 Q 69,78 73,77 L 73,64 Q 70,62 66,63 Z' },
-  { muscle: 'Hamstrings', d: 'M 84,63 Q 86,70 85,77 Q 81,78 77,77 L 77,64 Q 80,62 84,63 Z' },
+  // Hamstrings — back of thigh, ends above the knee
+  { muscle: 'Hamstrings', d: 'M 67,63.5 Q 64.5,70 66,76.5 Q 69,77.5 72.5,76.5 L 72.5,64.5 Q 70,63 67,63.5 Z' },
+  { muscle: 'Hamstrings', d: 'M 83,63.5 Q 85.5,70 84,76.5 Q 81,77.5 77.5,76.5 L 77.5,64.5 Q 80,63 83,63.5 Z' },
 
-  { muscle: 'Calves',     d: 'M 66,78 Q 64,84 66,90 Q 69,91 72,90 L 72,78 Q 69,77 66,78 Z' },
-  { muscle: 'Calves',     d: 'M 84,78 Q 86,84 84,90 Q 81,91 78,90 L 78,78 Q 81,77 84,78 Z' }
+  // Calves (back)
+  { muscle: 'Calves',     d: 'M 67,78 Q 65,83.5 67,88 Q 69.5,89.5 72.5,88 L 72.5,78 Q 70,77 67,78 Z' },
+  { muscle: 'Calves',     d: 'M 83,78 Q 85,83.5 83,88 Q 80.5,89.5 77.5,88 L 77.5,78 Q 80,77 83,78 Z' }
 ]
 
 export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect }) {
