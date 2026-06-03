@@ -119,35 +119,35 @@ export default function WorkoutLogger() {
               )}
             </div>
 
-            <div className="grid grid-cols-[28px_1fr_1fr_auto_auto] gap-2 text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1 px-1">
-              <div>Set</div>
-              <div>Weight</div>
-              <div>Reps</div>
-              <div className="text-center">✓</div>
-              <div></div>
+            <div className="flex gap-2 text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1 px-1">
+              <div className="w-6 shrink-0">Set</div>
+              <div className="flex-1">Weight</div>
+              <div className="flex-1">Reps</div>
+              <div className="w-8 text-center shrink-0">✓</div>
+              <div className="w-5 shrink-0"></div>
             </div>
 
             <div className="space-y-1.5">
               {ex.sets.map((s, j) => (
-                <div key={j} className={`grid grid-cols-[28px_1fr_1fr_auto_auto] gap-2 items-center rounded-xl px-1 py-1 ${s.completed ? 'bg-xp/10' : ''}`}>
-                  <div className="text-center font-bold text-white/60">{j + 1}</div>
+                <div key={j} className={`flex gap-2 items-center rounded-xl px-1 py-1 ${s.completed ? 'bg-xp/10' : ''}`}>
+                  <div className="w-6 shrink-0 text-center font-bold text-white/60">{j + 1}</div>
                   <input
                     type="number" min="0" value={s.weight}
                     onChange={e => updateSet(i, j, { weight: Number(e.target.value) })}
-                    className="input py-1.5"
+                    className="input py-1.5 flex-1 min-w-0"
                   />
                   <input
                     type="number" min="0" value={s.reps}
                     onChange={e => updateSet(i, j, { reps: Number(e.target.value) })}
-                    className="input py-1.5"
+                    className="input py-1.5 flex-1 min-w-0"
                   />
                   <button
                     onClick={() => updateSet(i, j, { completed: !s.completed })}
-                    className={`w-8 h-8 rounded-lg border ${s.completed ? 'bg-xp text-bg-900 border-xp' : 'border-white/15 text-white/40'}`}
+                    className={`w-8 h-8 shrink-0 rounded-lg border ${s.completed ? 'bg-xp text-bg-900 border-xp' : 'border-white/15 text-white/40'}`}
                   >✓</button>
                   <button
                     onClick={() => removeSet(i, j)}
-                    className="text-white/30 hover:text-danger text-sm"
+                    className="w-5 shrink-0 text-white/30 hover:text-danger text-sm text-center"
                   >✕</button>
                 </div>
               ))}
