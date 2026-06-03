@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body, #root { height: 100%; }
+body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+@layer components {
+  .card {
+    @apply bg-bg-800/80 border border-white/5 rounded-2xl shadow-card backdrop-blur-sm;
+  }
+  .card-grad {
+    @apply card bg-card-grad;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-accent hover:bg-accent-glow text-white shadow-glow;
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 hover:bg-white/10 text-white;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10;
+  }
+  .input {
+    @apply bg-bg-700/80 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/20 placeholder:text-white/30;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wider text-white/50;
+  }
+}
+
+/* nicer scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* subtle muscle glow */
+.muscle-glow {
+  filter: drop-shadow(0 0 8px rgba(124,92,255,0.6));
+}
