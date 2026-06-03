@@ -1,6 +1,5 @@
--- Liftit schema. Run this once in Supabase SQL Editor.
--- All access goes through SECURITY DEFINER RPCs which validate the PIN hash.
--- The anon key can ONLY call these functions; the users table itself is locked.
+-- Liftit schema (v2). Idempotent — safe to re-run.
+-- ALSO: in Supabase dashboard → Storage → create a PUBLIC bucket named "user-content".
 
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
@@ -17,16 +16,29 @@ create table if not exists public.users (
   updated_at timestamptz not null default now()
 );
 
-alter table public.users enable row level security;
--- no policies = anon cannot read/write the table directly.
+-- v2 columns
+alter table public.users add column if not exists total_workouts int not null default 0;
+alter table public.users add column if not exists profile_pic_url text;
+alter table public.users add column if not exists last_sessions jsonb not null default '{}'::jsonb;
+
+create table if not exists public.pump_photos (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  image_url text not null,
+  taken_at timestamptz not null,
+  caption text,
+  xp_bonus int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists pump_photos_username_idx on public.pump_photos(username, taken_at desc);
+
+alter table public.users      enable row level security;
+alter table public.pump_photos enable row level security;
 
 -- ---------- RPC: signup ----------
 create or replace function public.app_signup(
-  p_username text,
-  p_pin_hash text,
-  p_initial_muscles jsonb
-) returns jsonb
-language plpgsql security definer set search_path = public as $$
+  p_username text, p_pin_hash text, p_initial_muscles jsonb
+) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u public.users;
 begin
   if length(trim(p_username)) < 2 or length(trim(p_username)) > 20 then
@@ -45,10 +57,8 @@ end; $$;
 
 -- ---------- RPC: login ----------
 create or replace function public.app_login(
-  p_username text,
-  p_pin_hash text
-) returns jsonb
-language plpgsql security definer set search_path = public as $$
+  p_username text, p_pin_hash text
+) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u public.users;
 begin
   select * into u from public.users where username = lower(trim(p_username));
@@ -59,11 +69,8 @@ end; $$;
 
 -- ---------- RPC: save state ----------
 create or replace function public.app_save_state(
-  p_username text,
-  p_pin_hash text,
-  p_state jsonb
-) returns jsonb
-language plpgsql security definer set search_path = public as $$
+  p_username text, p_pin_hash text, p_state jsonb
+) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u public.users;
 begin
   select * into u from public.users where username = lower(trim(p_username));
@@ -77,6 +84,9 @@ begin
     last_workout_date  = nullif(p_state->>'lastWorkoutDate','')::date,
     muscles            = coalesce(p_state->'muscles', muscles),
     personal_bests     = coalesce(p_state->'personalBests', personal_bests),
+    last_sessions      = coalesce(p_state->'lastSessions', last_sessions),
+    total_workouts     = coalesce((p_state->>'totalWorkouts')::int, total_workouts),
+    profile_pic_url    = coalesce(p_state->>'profilePicUrl', profile_pic_url),
     updated_at         = now()
   where username = lower(trim(p_username))
   returning * into u;
@@ -86,21 +96,58 @@ end; $$;
 -- ---------- RPC: leaderboard ----------
 create or replace function public.app_leaderboard()
 returns table (
-  username text,
-  total_xp int,
-  weekly_xp int,
-  streak int,
-  muscles jsonb
+  username text, total_xp int, weekly_xp int, streak int,
+  total_workouts int, profile_pic_url text, muscles jsonb
 ) language sql security definer set search_path = public as $$
-  select username, total_xp, weekly_xp, streak, muscles
-  from public.users
-  order by total_xp desc
-  limit 100;
+  select username, total_xp, weekly_xp, streak, total_workouts, profile_pic_url, muscles
+  from public.users order by total_xp desc limit 100;
 $$;
 
--- Lock down: only allow anon to execute the four RPCs, nothing else.
+-- ---------- RPC: pump photos ----------
+create or replace function public.app_save_pump_photo(
+  p_username text, p_pin_hash text, p_image_url text,
+  p_taken_at timestamptz, p_caption text, p_xp_bonus int
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u public.users; new_id uuid;
+begin
+  select * into u from public.users where username = lower(trim(p_username));
+  if u.id is null then raise exception 'User not found'; end if;
+  if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
+  insert into public.pump_photos (username, image_url, taken_at, caption, xp_bonus)
+  values (u.username, p_image_url, p_taken_at, p_caption, coalesce(p_xp_bonus, 0))
+  returning id into new_id;
+  return jsonb_build_object('id', new_id);
+end; $$;
+
+create or replace function public.app_get_pump_photos(p_username text)
+returns table (id uuid, image_url text, taken_at timestamptz, caption text, xp_bonus int)
+language sql security definer set search_path = public as $$
+  select id, image_url, taken_at, caption, xp_bonus
+  from public.pump_photos
+  where username = lower(trim(p_username))
+  order by taken_at desc limit 200;
+$$;
+
+-- Lock + grant
 revoke all on public.users from anon, authenticated;
+revoke all on public.pump_photos from anon, authenticated;
 grant execute on function public.app_signup(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_save_state(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_leaderboard() to anon, authenticated;
+grant execute on function public.app_save_pump_photo(text, text, text, timestamptz, text, int) to anon, authenticated;
+grant execute on function public.app_get_pump_photos(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ---------- Storage policies for "user-content" bucket ----------
+-- Must run AFTER you've created the bucket in Storage → New bucket → name "user-content" → public.
+do $$ begin
+  if exists (select 1 from storage.buckets where id = 'user-content') then
+    -- Allow anon to read & insert (we trust filenames generated client-side)
+    drop policy if exists "uc-read"   on storage.objects;
+    drop policy if exists "uc-insert" on storage.objects;
+    create policy "uc-read"   on storage.objects for select using (bucket_id = 'user-content');
+    create policy "uc-insert" on storage.objects for insert with check (bucket_id = 'user-content');
+  end if;
+end $$;

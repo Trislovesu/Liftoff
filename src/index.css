@@ -52,3 +52,23 @@ body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color:
 .muscle-pulse {
   animation: muscle-pulse 1.8s ease-in-out infinite;
 }
+
+/* Bodygraph tier effects — escalate visual energy at high ranks */
+@keyframes tier-diamond-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--tier-color)) drop-shadow(0 0 14px var(--tier-color)); }
+  50%      { filter: drop-shadow(0 0 10px var(--tier-color)) drop-shadow(0 0 22px var(--tier-color)); }
+}
+.tier-diamond { animation: tier-diamond-pulse 2s ease-in-out infinite; }
+
+@keyframes tier-master-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--tier-color)) drop-shadow(0 0 18px var(--tier-color)) drop-shadow(0 0 28px var(--tier-color)); }
+  50%      { filter: drop-shadow(0 0 14px var(--tier-color)) drop-shadow(0 0 26px var(--tier-color)) drop-shadow(0 0 40px var(--tier-color)); }
+}
+.tier-master { animation: tier-master-pulse 1.6s ease-in-out infinite; }
+
+@keyframes tier-legend-fire {
+  0%   { filter: drop-shadow(0 -2px 6px #ff8a3d) drop-shadow(0 0 12px #ff5e7a) drop-shadow(0 0 24px #ffcc4d); }
+  50%  { filter: drop-shadow(0 -4px 10px #ffcc4d) drop-shadow(0 0 20px #ff8a3d) drop-shadow(0 0 36px #ff5e7a); }
+  100% { filter: drop-shadow(0 -2px 6px #ff8a3d) drop-shadow(0 0 12px #ff5e7a) drop-shadow(0 0 24px #ffcc4d); }
+}
+.tier-legend { animation: tier-legend-fire 1.2s ease-in-out infinite; }

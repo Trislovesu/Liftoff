@@ -1,4 +1,4 @@
-// Pure XP / level / rank math. All numbers tweakable in one place.
+// Pure XP / level / rank math.
 
 export const RANKS = [
   { name: 'Bronze',   min: 0,      color: '#cd7f32', glow: 'rgba(205,127,50,0.4)' },
@@ -11,13 +11,9 @@ export const RANKS = [
 ]
 
 export function rankFor(totalXP) {
-  let current = RANKS[0]
-  let next = null
+  let current = RANKS[0]; let next = null
   for (let i = 0; i < RANKS.length; i++) {
-    if (totalXP >= RANKS[i].min) {
-      current = RANKS[i]
-      next = RANKS[i + 1] ?? null
-    }
+    if (totalXP >= RANKS[i].min) { current = RANKS[i]; next = RANKS[i + 1] ?? null }
   }
   const xpIntoRank = totalXP - current.min
   const xpForNext = next ? next.min - current.min : 0
@@ -26,59 +22,70 @@ export function rankFor(totalXP) {
   return { current, next, progress, xpToNext }
 }
 
-// Profile level: smooth curve. level n requires sum_{i=1..n} 100*i^1.4 XP.
+export function rankIndex(totalXP) {
+  let idx = 0
+  for (let i = 0; i < RANKS.length; i++) if (totalXP >= RANKS[i].min) idx = i
+  return idx
+}
+
 export function levelFromXP(totalXP) {
-  let level = 1
-  let accum = 0
+  let level = 1, accum = 0
   while (true) {
     const need = Math.round(100 * Math.pow(level, 1.4))
     if (accum + need > totalXP) {
-      return {
-        level,
-        xpIntoLevel: totalXP - accum,
-        xpForLevel: need,
-        progress: (totalXP - accum) / need
-      }
+      return { level, xpIntoLevel: totalXP - accum, xpForLevel: need, progress: (totalXP - accum) / need }
     }
-    accum += need
-    level += 1
+    accum += need; level += 1
     if (level > 999) return { level, xpIntoLevel: 0, xpForLevel: 1, progress: 1 }
   }
 }
 
-// Muscle level curve: each muscle level needs 200 + 50*level XP.
 export function muscleXPForLevel(level) { return 200 + 50 * level }
 export function muscleProgress(muscle) {
   const need = muscleXPForLevel(muscle.level)
   return { need, progress: Math.min(1, muscle.xp / need) }
 }
 export function applyMuscleXP(muscle, gained) {
-  let xp = muscle.xp + gained
-  let level = muscle.level
+  let xp = muscle.xp + gained, level = muscle.level
   let need = muscleXPForLevel(level)
-  while (xp >= need) {
-    xp -= need
-    level += 1
-    need = muscleXPForLevel(level)
-  }
+  while (xp >= need) { xp -= need; level += 1; need = muscleXPForLevel(level) }
   return { ...muscle, xp, level }
 }
 
-// XP per set:
-//   baseSetXP  = 10
-//   weightBonus = weight * 0.1
-//   repBonus   = reps * 1
-//   prBonus    = 50 if new PR
-//   streakBonus = currentStreak * 5  (added once per workout below)
+// XP per set — heavier + higher reps now scale much more aggressively via a
+// volume multiplier on top of the flat bonuses.
+//   base       = 10
+//   weightBon  = weight * 0.15
+//   repBon     = reps   * 1.2
+//   volumeBon  = (weight * reps) * 0.04
+//   prBon      = 50 if PR
+//   multiplier = 1 + min(1.2, volume/1800)   // up to 2.2× for huge sets
 export function xpForSet({ reps, weight, isPR }) {
   if (!reps) return 0
-  const base = 10
-  const w = Math.max(0, Number(weight) || 0) * 0.1
-  const r = Math.max(0, Number(reps) || 0) * 1
-  const pr = isPR ? 50 : 0
-  return Math.round(base + w + r + pr)
+  const w = Math.max(0, Number(weight) || 0)
+  const r = Math.max(0, Number(reps)   || 0)
+  const volume = w * r
+  const base       = 10
+  const weightBon  = w * 0.15
+  const repBon     = r * 1.2
+  const volumeBon  = volume * 0.04
+  const prBon      = isPR ? 50 : 0
+  const multiplier = 1 + Math.min(1.2, volume / 1800)
+  return Math.round((base + weightBon + repBon + volumeBon + prBon) * multiplier)
 }
 
-export function workoutStreakBonus(streak) {
-  return Math.max(0, streak) * 5
+// Flat bonus per completed workout (replaces streak bonus).
+export const WORKOUT_COMPLETION_BONUS = 25
+// Bonus for posting a pump pic at finish.
+export const PUMP_PIC_BONUS = 75
+
+// Soft realism check — flag obviously unrealistic sets. Returns array of warnings.
+export function sanityCheckSet({ reps, weight }) {
+  const w = Number(weight) || 0
+  const r = Number(reps) || 0
+  const warn = []
+  if (w > 1500) warn.push(`${w} lbs? Be honest, gym shark.`)
+  if (r > 200)  warn.push(`${r} reps in one set? Really?`)
+  if (w < 0 || r < 0) warn.push(`Negative numbers won't fly.`)
+  return warn
 }
