@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useApp } from '../store/AppContext.jsx'
 import Header from '../components/Header.jsx'
 import { levelFromXP, rankFor } from '../lib/xp.js'
@@ -10,7 +9,6 @@ export default function Profile() {
   const { user, history } = state
   const lvl = levelFromXP(user.totalXP)
   const { current, next, xpToNext } = rankFor(user.totalXP)
-  const [name, setName] = useState(user.username)
 
   return (
     <div>
@@ -21,14 +19,10 @@ export default function Profile() {
         <div className="flex items-center gap-3 mb-3">
           <RankBadge rank={current} size={56} />
           <div className="min-w-0 flex-1">
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onBlur={() => name.trim() && actions.updateUsername(name.trim())}
-              className="input w-full font-extrabold text-lg"
-            />
-            <div className="text-xs text-white/50 mt-1">
-              Level {lvl.level} • {current.name}{next ? ` • ${xpToNext.toLocaleString()} XP to ${next.name}` : ' • Max rank'}
+            <div className="font-extrabold text-xl truncate">{user.username}</div>
+            <div className="text-xs text-white/50 mt-0.5">
+              Level {lvl.level} • {current.name}
+              {next ? ` • ${xpToNext.toLocaleString()} XP to ${next.name}` : ' • Max rank'}
             </div>
           </div>
         </div>
@@ -64,13 +58,11 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="mt-6 text-center">
+      <div className="mt-6 flex justify-center">
         <button
-          onClick={() => {
-            if (confirm('Reset all progress? This cannot be undone.')) actions.reset()
-          }}
-          className="text-xs text-danger/70 hover:text-danger"
-        >Reset all progress</button>
+          onClick={() => { if (confirm('Sign out?')) actions.signOut() }}
+          className="btn-ghost text-sm"
+        >Sign Out</button>
       </div>
     </div>
   )
