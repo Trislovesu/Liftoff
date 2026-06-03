@@ -8,7 +8,7 @@ import { tierForLevel } from '../lib/tiers.js'
 //                 then "Copy Paths" to copy the new OVERLAYS array onto
 //                 your clipboard so you can paste it back into this file.
 const DEBUG_OVERLAYS = false
-const EDIT_MODE      = false // ← flip to true to re-open the position editor
+const EDIT_MODE      = true  // ← flip to false to ship
 
 // ─── Overlay zones (percent coordinates in a 0–100 viewBox) ──────────────
 const OVERLAYS = [
@@ -66,16 +66,42 @@ function translatePath(d, dx, dy) {
 }
 const round = n => Math.round(n * 100) / 100
 
+const MUSCLE_NAMES = ['Shoulders', 'Chest', 'Biceps', 'Triceps', 'Forearms', 'Abs', 'Back', 'Quads', 'Hamstrings', 'Glutes', 'Calves']
+
+// Build a path "d" string from a list of {x,y} points.
+function pointsToD(points) {
+  if (points.length < 2) return ''
+  let d = `M ${round(points[0].x)},${round(points[0].y)}`
+  for (let i = 1; i < points.length; i++) d += ` L ${round(points[i].x)},${round(points[i].y)}`
+  return d + ' Z'
+}
+
 export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect }) {
-  const [transforms, setTransforms] = useState(() => OVERLAYS.map(() => ({ dx: 0, dy: 0 })))
+  // Unified items list: starts with OVERLAYS, can grow (drafts) or shrink (deletes).
+  const [items, setItems] = useState(() =>
+    OVERLAYS.map(o => ({ muscle: o.muscle, d: o.d, transform: { dx: 0, dy: 0 } }))
+  )
   const [editingIdx, setEditingIdx] = useState(null)
+
+  // Draw mode state
+  const [mode, setMode] = useState('edit')           // 'edit' | 'draw'
+  const [drawPoints, setDrawPoints] = useState([])
+  const [drawMuscle, setDrawMuscle] = useState('Shoulders')
+
   const svgRef = useRef(null)
   const dragRef = useRef(null)
 
   // Arrow-key nudging while editing. Shift = fine (0.1), default = 0.5.
+  // In draw mode: Backspace removes last point, Enter finishes, Escape cancels.
   useEffect(() => {
     if (!EDIT_MODE) return
     function onKey(e) {
+      if (mode === 'draw') {
+        if (e.key === 'Backspace') { e.preventDefault(); setDrawPoints(p => p.slice(0, -1)) }
+        else if (e.key === 'Enter') { e.preventDefault(); finishDrawing() }
+        else if (e.key === 'Escape') { e.preventDefault(); cancelDrawing() }
+        return
+      }
       if (editingIdx == null) return
       const step = e.shiftKey ? 0.1 : 0.5
       let dx = 0, dy = 0
@@ -83,20 +109,21 @@ export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect
       else if (e.key === 'ArrowRight') dx = step
       else if (e.key === 'ArrowUp')    dy = -step
       else if (e.key === 'ArrowDown')  dy = step
+      else if (e.key === 'Delete') { e.preventDefault(); deleteSelected(); return }
       else return
       e.preventDefault()
-      setTransforms(ts => ts.map((v, i) => i === editingIdx ? { dx: v.dx + dx, dy: v.dy + dy } : v))
+      setItems(is => is.map((v, i) => i === editingIdx ? { ...v, transform: { dx: v.transform.dx + dx, dy: v.transform.dy + dy } } : v))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editingIdx])
+  }, [editingIdx, mode, drawPoints])
 
   function startDrag(idx, e) {
-    if (!EDIT_MODE) return
+    if (!EDIT_MODE || mode === 'draw') return
     e.preventDefault()
     e.stopPropagation()
     setEditingIdx(idx)
-    const base = transforms[idx]
+    const base = items[idx].transform
     dragRef.current = { idx, startX: e.clientX, startY: e.clientY, baseDx: base.dx, baseDy: base.dy }
 
     function onMove(ev) {
@@ -105,7 +132,7 @@ export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect
       const rect = svgRef.current.getBoundingClientRect()
       const dx = ((ev.clientX - drag.startX) / rect.width)  * 100
       const dy = ((ev.clientY - drag.startY) / rect.height) * 100
-      setTransforms(ts => ts.map((v, i) => i === drag.idx ? { dx: drag.baseDx + dx, dy: drag.baseDy + dy } : v))
+      setItems(is => is.map((v, i) => i === drag.idx ? { ...v, transform: { dx: drag.baseDx + dx, dy: drag.baseDy + dy } } : v))
     }
     function onUp() {
       dragRef.current = null
@@ -118,27 +145,68 @@ export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect
 
   function nudge(dx, dy) {
     if (editingIdx == null) return
-    setTransforms(ts => ts.map((v, i) => i === editingIdx ? { dx: v.dx + dx, dy: v.dy + dy } : v))
+    setItems(is => is.map((v, i) => i === editingIdx ? { ...v, transform: { dx: v.transform.dx + dx, dy: v.transform.dy + dy } } : v))
   }
   function resetSelected() {
     if (editingIdx == null) return
-    setTransforms(ts => ts.map((v, i) => i === editingIdx ? { dx: 0, dy: 0 } : v))
+    setItems(is => is.map((v, i) => i === editingIdx ? { ...v, transform: { dx: 0, dy: 0 } } : v))
   }
   function resetAll() {
-    setTransforms(OVERLAYS.map(() => ({ dx: 0, dy: 0 })))
+    setItems(OVERLAYS.map(o => ({ muscle: o.muscle, d: o.d, transform: { dx: 0, dy: 0 } })))
+    setEditingIdx(null)
   }
+  function deleteSelected() {
+    if (editingIdx == null) return
+    if (!confirm(`Delete overlay #${editingIdx} (${items[editingIdx].muscle})?`)) return
+    setItems(is => is.filter((_, i) => i !== editingIdx))
+    setEditingIdx(null)
+  }
+  function setSelectedMuscle(name) {
+    if (editingIdx == null) return
+    setItems(is => is.map((v, i) => i === editingIdx ? { ...v, muscle: name } : v))
+  }
+
+  // ─── Draw mode ────────────────────────────────────────────────────────
+  function svgPointFromMouse(ev) {
+    const rect = svgRef.current.getBoundingClientRect()
+    return {
+      x: ((ev.clientX - rect.left) / rect.width)  * 100,
+      y: ((ev.clientY - rect.top)  / rect.height) * 100
+    }
+  }
+  function onSvgClick(ev) {
+    if (mode !== 'draw') return
+    // Ignore clicks on existing overlays — only blank-canvas clicks add points.
+    if (ev.target.tagName === 'path') return
+    const p = svgPointFromMouse(ev)
+    setDrawPoints(arr => [...arr, p])
+  }
+  function startDrawing() {
+    setEditingIdx(null)
+    setDrawPoints([])
+    setMode('draw')
+  }
+  function finishDrawing() {
+    if (drawPoints.length < 3) { alert('Need at least 3 points to make a shape.'); return }
+    const d = pointsToD(drawPoints)
+    setItems(is => [...is, { muscle: drawMuscle, d, transform: { dx: 0, dy: 0 } }])
+    setDrawPoints([])
+    setMode('edit')
+    setEditingIdx(items.length) // select the newly added one
+  }
+  function cancelDrawing() { setDrawPoints([]); setMode('edit') }
+
   async function copyPaths() {
-    const lines = OVERLAYS.map((o, i) => {
-      const t = transforms[i]
-      const newD = translatePath(o.d, t.dx, t.dy)
-      return `  { muscle: '${o.muscle}', d: '${newD}' },`
+    const lines = items.map(it => {
+      const t = it.transform
+      const newD = translatePath(it.d, t.dx, t.dy)
+      return `  { muscle: '${it.muscle}', d: '${newD}' },`
     })
     const text = 'const OVERLAYS = [\n' + lines.join('\n') + '\n]'
     try {
       await navigator.clipboard.writeText(text)
       alert('New OVERLAYS array copied to clipboard.\nPaste it over the existing one in FrontBackBodyMap.jsx, then set EDIT_MODE = false.')
     } catch {
-      // Fallback: dump to console
       console.log(text)
       alert('Clipboard unavailable. Paths logged to console — copy from there.')
     }
@@ -159,14 +227,16 @@ export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect
           className="absolute inset-0 w-full h-full"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
+          onClick={onSvgClick}
+          style={{ cursor: mode === 'draw' ? 'crosshair' : undefined }}
         >
-          {OVERLAYS.map((o, i) => {
+          {items.map((o, i) => {
             const muscle = musclesByName[o.muscle]
             const level = muscle?.level ?? 0
             const tier = tierForLevel(level)
             const isSelected = selectedName === o.muscle
             const isEditing = editingIdx === i
-            const t = transforms[i]
+            const t = o.transform
             const showHit = DEBUG_OVERLAYS || EDIT_MODE
 
             const fill = showHit
@@ -224,40 +294,141 @@ export default function FrontBackBodyMap({ musclesByName, selectedName, onSelect
               />
             )
           })}
+
+          {/* Labels for selected overlay in edit mode */}
+          {EDIT_MODE && editingIdx != null && items[editingIdx] && (
+            <LabelChip text={items[editingIdx].muscle} dRef={items[editingIdx]} />
+          )}
+
+          {/* In-progress drawing polygon */}
+          {EDIT_MODE && mode === 'draw' && drawPoints.length > 0 && (
+            <>
+              <polyline
+                points={drawPoints.map(p => `${p.x},${p.y}`).join(' ') +
+                        (drawPoints.length >= 3 ? ` ${drawPoints[0].x},${drawPoints[0].y}` : '')}
+                fill={drawPoints.length >= 3 ? 'rgba(120,255,180,0.20)' : 'none'}
+                stroke="#7eff9c"
+                strokeWidth="1"
+                strokeDasharray="1.2 1"
+                vectorEffect="non-scaling-stroke"
+                style={{ pointerEvents: 'none' }}
+              />
+              {drawPoints.map((p, i) => (
+                <g key={i} style={{ pointerEvents: 'none' }}>
+                  <circle cx={p.x} cy={p.y} r="0.8" fill="#7eff9c" stroke="#000" strokeWidth="0.2" vectorEffect="non-scaling-stroke" />
+                </g>
+              ))}
+            </>
+          )}
         </svg>
       </div>
 
       {EDIT_MODE && (
         <EditorPanel
+          mode={mode}
           editingIdx={editingIdx}
-          overlay={editingIdx != null ? OVERLAYS[editingIdx] : null}
-          transform={editingIdx != null ? transforms[editingIdx] : null}
-          totalCount={OVERLAYS.length}
+          overlay={editingIdx != null ? items[editingIdx] : null}
+          totalCount={items.length}
+          drawPoints={drawPoints}
+          drawMuscle={drawMuscle}
+          onChangeDrawMuscle={setDrawMuscle}
+          onChangeOverlayMuscle={setSelectedMuscle}
           onNudge={nudge}
           onResetSelected={resetSelected}
           onResetAll={resetAll}
+          onDeleteSelected={deleteSelected}
           onCopy={copyPaths}
           onSelectByIdx={setEditingIdx}
+          onStartDraw={startDrawing}
+          onFinishDraw={finishDrawing}
+          onCancelDraw={cancelDrawing}
+          onUndoPoint={() => setDrawPoints(p => p.slice(0, -1))}
         />
       )}
     </div>
   )
 }
 
-function EditorPanel({ editingIdx, overlay, transform, totalCount, onNudge, onResetSelected, onResetAll, onCopy, onSelectByIdx }) {
+function LabelChip({ text, dRef }) {
+  // Crude center: parse the first M command of d for an anchor near the centroid
+  // (overlaid translation is already on the path element).
+  const tokens = dRef.d.match(/-?\d+(?:\.\d+)?/g) || []
+  let cx = 50, cy = 50
+  if (tokens.length >= 4) {
+    // average all coordinate pairs
+    let sx = 0, sy = 0, n = 0
+    for (let i = 0; i + 1 < tokens.length; i += 2) {
+      sx += parseFloat(tokens[i]); sy += parseFloat(tokens[i + 1]); n++
+    }
+    cx = sx / n + dRef.transform.dx
+    cy = sy / n + dRef.transform.dy
+  }
   return (
-    <div className="fixed bottom-24 right-3 z-50 w-60 bg-bg-800/95 border border-accent/40 rounded-2xl p-3 text-xs shadow-glow backdrop-blur-md">
+    <g style={{ pointerEvents: 'none' }}>
+      <rect x={cx - 6} y={cy - 1.6} width="12" height="3.2" rx="1.2"
+        fill="rgba(0,0,0,0.7)" stroke="#7eff9c" strokeWidth="0.3" vectorEffect="non-scaling-stroke" />
+      <text x={cx} y={cy + 0.7} textAnchor="middle" fontSize="2"
+        fill="#ffffff" fontWeight="700" style={{ userSelect: 'none' }}>
+        {text}
+      </text>
+    </g>
+  )
+}
+
+function EditorPanel({
+  mode, editingIdx, overlay, totalCount,
+  drawPoints, drawMuscle,
+  onChangeDrawMuscle, onChangeOverlayMuscle,
+  onNudge, onResetSelected, onResetAll, onDeleteSelected, onCopy, onSelectByIdx,
+  onStartDraw, onFinishDraw, onCancelDraw, onUndoPoint
+}) {
+  if (mode === 'draw') {
+    return (
+      <div className="fixed bottom-24 right-3 z-50 w-64 bg-bg-800/95 border border-xp/50 rounded-2xl p-3 text-xs shadow-glow backdrop-blur-md">
+        <div className="font-extrabold text-xp mb-2">Draw Mode</div>
+        <div className="text-white/70 mb-2">
+          Click on the body to add points.
+          <div className="text-white/40 text-[10px]">{drawPoints.length} point{drawPoints.length === 1 ? '' : 's'} placed</div>
+        </div>
+        <label className="block mb-2">
+          <div className="text-[10px] uppercase tracking-wider text-white/40 font-bold mb-1">Muscle</div>
+          <select className="input w-full text-xs py-1"
+            value={drawMuscle} onChange={e => onChangeDrawMuscle(e.target.value)}>
+            {MUSCLE_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </label>
+        <div className="flex gap-1 mb-2">
+          <button className="btn-ghost flex-1 py-1 text-[11px]"
+            disabled={drawPoints.length === 0} onClick={onUndoPoint}>Undo</button>
+          <button className="btn-ghost flex-1 py-1 text-[11px]" onClick={onCancelDraw}>Cancel</button>
+        </div>
+        <button className="btn-primary w-full py-1.5 text-[11px]"
+          disabled={drawPoints.length < 3} onClick={onFinishDraw}>
+          ✓ Finish ({drawPoints.length}/3)
+        </button>
+        <div className="text-[10px] text-white/40 leading-snug mt-2">
+          Backspace = undo · Enter = finish · Esc = cancel
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed bottom-24 right-3 z-50 w-64 bg-bg-800/95 border border-accent/40 rounded-2xl p-3 text-xs shadow-glow backdrop-blur-md">
       <div className="flex items-center justify-between mb-2">
         <div className="font-extrabold text-accent">Overlay Editor</div>
-        <div className="text-white/40 text-[10px]">{editingIdx != null ? `#${editingIdx}` : '—'}</div>
+        <div className="text-white/40 text-[10px]">{editingIdx != null ? `#${editingIdx}` : '—'} / {totalCount}</div>
       </div>
 
-      <div className="mb-2 text-white/70 min-h-[28px]">
+      <div className="mb-2">
         {overlay ? (
           <>
-            <div className="font-bold">{overlay.muscle}</div>
+            <select className="input w-full text-xs py-1 font-bold mb-1"
+              value={overlay.muscle} onChange={e => onChangeOverlayMuscle(e.target.value)}>
+              {MUSCLE_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
             <div className="text-white/40 text-[10px]">
-              dx {transform.dx.toFixed(2)} · dy {transform.dy.toFixed(2)}
+              dx {overlay.transform.dx.toFixed(2)} · dy {overlay.transform.dy.toFixed(2)}
             </div>
           </>
         ) : (
@@ -266,16 +437,12 @@ function EditorPanel({ editingIdx, overlay, transform, totalCount, onNudge, onRe
       </div>
 
       <div className="flex items-center gap-1 mb-2">
-        <button
-          className="btn-ghost flex-1 py-1 text-[11px]"
+        <button className="btn-ghost flex-1 py-1 text-[11px]"
           disabled={editingIdx == null || editingIdx === 0}
-          onClick={() => onSelectByIdx(Math.max(0, (editingIdx ?? 0) - 1))}
-        >‹ Prev</button>
-        <button
-          className="btn-ghost flex-1 py-1 text-[11px]"
+          onClick={() => onSelectByIdx(Math.max(0, (editingIdx ?? 0) - 1))}>‹ Prev</button>
+        <button className="btn-ghost flex-1 py-1 text-[11px]"
           disabled={editingIdx == null || editingIdx === totalCount - 1}
-          onClick={() => onSelectByIdx(Math.min(totalCount - 1, (editingIdx ?? -1) + 1))}
-        >Next ›</button>
+          onClick={() => onSelectByIdx(Math.min(totalCount - 1, (editingIdx ?? -1) + 1))}>Next ›</button>
       </div>
 
       <div className="grid grid-cols-3 gap-1 mb-2">
@@ -290,15 +457,19 @@ function EditorPanel({ editingIdx, overlay, transform, totalCount, onNudge, onRe
         <span />
       </div>
 
-      <div className="flex gap-1 mb-2">
+      <div className="flex gap-1 mb-1">
+        <button className="btn-ghost flex-1 py-1.5 text-[11px]"
+          disabled={editingIdx == null}
+          onClick={onDeleteSelected}>🗑 Delete</button>
         <button className="btn-ghost flex-1 py-1.5 text-[11px]" onClick={onResetAll}>Reset All</button>
+      </div>
+      <div className="flex gap-1 mb-2">
+        <button className="btn-ghost flex-1 py-1.5 text-[11px] text-xp" onClick={onStartDraw}>✎ Draw New</button>
         <button className="btn-primary flex-1 py-1.5 text-[11px]" onClick={onCopy}>Copy Paths</button>
       </div>
 
       <div className="text-[10px] text-white/40 leading-snug">
-        Drag a zone to move it.
-        Arrow keys nudge 0.5 (Shift = 0.1).
-        Hit Copy Paths when done.
+        Drag = move · Arrows = nudge 0.5 (Shift = 0.1) · Delete = remove · Draw New = trace a polygon
       </div>
     </div>
   )

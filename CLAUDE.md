@@ -2,6 +2,8 @@
 
 > Read this first if you're a new session picking up this project. Everything you need to be productive is here.
 
+> **MAINTENANCE RULE (do not skip):** Every time you make a code change in this project, update this file in the same commit. Sections to keep current: file map, data model, XP system, bodygraph implementation, "things to NOT do", and the recent-changes note at the bottom. If you add a new file, list it. If you change a behavior the user relies on (XP formula, schema, tier colors, etc.), update the explanation.
+
 ## What this is
 
 A gamified, mobile-first workout tracker. Track lifts → level up muscles → climb ranks → beat friends. Currently deployed to GitHub Pages, with a Supabase backend powering accounts, leaderboard, and image storage.
