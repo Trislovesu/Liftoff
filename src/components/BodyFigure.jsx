@@ -1,77 +1,184 @@
-import React from 'react'
 import { tierForLevel } from '../lib/tiers.js'
 
-// Decorative body parts (head, neck, hands, feet) — always neutral light gray.
-const BODY_FILL = '#dde3ee'
-const BODY_STROKE = '#9ca5b9'
-const UNTRAINED_FILL = '#cfd6e2'
+// Anatomical bodygraph figure. Each muscle is an SVG path shaped roughly
+// like the real muscle, and the paths tile together to form a continuous
+// body silhouette. Untrained muscles render in a neutral body tone so the
+// figure still reads as a complete body; trained ones take their tier color
+// with a soft glow. White anatomical strokes between zones give the "fitness
+// app muscle heatmap" look.
 
-// Muscle zones are paths inside viewBox 160×380. Together they form the
-// front/back body silhouette. Untrained zones render as a body-neutral gray
-// so the figure still reads as a complete body even with no progress.
+const BODY_TONE        = '#e6ebf3' // base body fill (untrained muscles & decoratives)
+const DECOR_TONE       = '#dde3ee' // slightly darker for head/hands/feet
+const STROKE           = 'rgba(255,255,255,0.85)'
+const STROKE_W         = 1.1
+const UNTRAINED_STROKE = 'rgba(255,255,255,0.55)'
+
+// ──────────────────────────────────────────────────────────────────────────
+// FRONT VIEW — viewBox 200 × 480
+// ──────────────────────────────────────────────────────────────────────────
 const FRONT_ZONES = [
-  { muscle: 'Shoulders', d: 'M 62,54 Q 48,58 46,72 Q 50,82 60,82 L 66,68 Z' },
-  { muscle: 'Shoulders', d: 'M 98,54 Q 112,58 114,72 Q 110,82 100,82 L 94,68 Z' },
-  { muscle: 'Chest',     d: 'M 62,54 Q 80,50 98,54 Q 104,80 98,110 Q 80,116 62,110 Q 56,80 62,54 Z' },
-  { muscle: 'Biceps',    d: 'M 44,80 Q 38,98 42,120 Q 48,130 54,126 L 56,92 Q 54,82 50,80 Z' },
-  { muscle: 'Biceps',    d: 'M 116,80 Q 122,98 118,120 Q 112,130 106,126 L 104,92 Q 106,82 110,80 Z' },
-  { muscle: 'Forearms',  d: 'M 38,130 Q 30,150 34,174 Q 38,184 46,182 L 48,150 Q 48,138 42,128 Z' },
-  { muscle: 'Forearms',  d: 'M 122,130 Q 130,150 126,174 Q 122,184 114,182 L 112,150 Q 112,138 118,128 Z' },
-  { muscle: 'Abs',       d: 'M 64,110 Q 80,114 96,110 L 100,172 Q 80,180 60,172 Z' },
-  { muscle: 'Quads',     d: 'M 62,202 Q 54,234 60,276 Q 64,290 74,288 Q 78,272 78,248 L 78,200 Q 70,198 62,202 Z' },
-  { muscle: 'Quads',     d: 'M 98,202 Q 106,234 100,276 Q 96,290 86,288 Q 82,272 82,248 L 82,200 Q 90,198 98,202 Z' },
-  { muscle: 'Calves',    d: 'M 62,296 Q 58,320 64,344 Q 70,358 76,354 L 78,308 Q 70,294 62,296 Z' },
-  { muscle: 'Calves',    d: 'M 98,296 Q 102,320 96,344 Q 90,358 84,354 L 82,308 Q 90,294 98,296 Z' }
+  // Shoulders (front deltoids)
+  { muscle: 'Shoulders',
+    d: 'M 86,72 Q 70,76 58,86 Q 50,98 52,114 Q 64,116 76,110 L 86,100 Z' },
+  { muscle: 'Shoulders',
+    d: 'M 114,72 Q 130,76 142,86 Q 150,98 148,114 Q 136,116 124,110 L 114,100 Z' },
+
+  // Pectorals (chest), split left + right but both share the "Chest" muscle
+  { muscle: 'Chest',
+    d: 'M 86,76 Q 78,82 72,94 Q 66,110 70,126 Q 78,140 92,142 Q 100,142 100,138 L 100,80 Q 96,76 86,76 Z' },
+  { muscle: 'Chest',
+    d: 'M 114,76 Q 122,82 128,94 Q 134,110 130,126 Q 122,140 108,142 Q 100,142 100,138 L 100,80 Q 104,76 114,76 Z' },
+
+  // Biceps
+  { muscle: 'Biceps',
+    d: 'M 52,114 Q 44,128 42,154 Q 44,168 54,170 Q 62,166 64,156 L 70,128 Q 62,116 52,114 Z' },
+  { muscle: 'Biceps',
+    d: 'M 148,114 Q 156,128 158,154 Q 156,168 146,170 Q 138,166 136,156 L 130,128 Q 138,116 148,114 Z' },
+
+  // Forearms
+  { muscle: 'Forearms',
+    d: 'M 42,160 Q 34,184 32,216 Q 32,244 40,260 Q 50,260 54,250 L 58,204 Q 56,182 50,170 Z' },
+  { muscle: 'Forearms',
+    d: 'M 158,160 Q 166,184 168,216 Q 168,244 160,260 Q 150,260 146,250 L 142,204 Q 144,182 150,170 Z' },
+
+  // Abs (rectus + obliques as one Abs zone so it reads anatomically)
+  { muscle: 'Abs',
+    d: 'M 84,142 Q 100,148 116,142 Q 124,162 126,202 Q 122,224 110,232 Q 100,236 90,232 Q 78,224 74,202 Q 76,162 84,142 Z' },
+
+  // Quads
+  { muscle: 'Quads',
+    d: 'M 76,252 Q 66,282 64,332 Q 66,354 80,362 Q 92,362 96,350 L 98,262 Q 92,252 76,252 Z' },
+  { muscle: 'Quads',
+    d: 'M 124,252 Q 134,282 136,332 Q 134,354 120,362 Q 108,362 104,350 L 102,262 Q 108,252 124,252 Z' },
+
+  // Calves
+  { muscle: 'Calves',
+    d: 'M 76,380 Q 66,408 70,438 Q 78,448 90,444 L 94,420 L 96,382 Q 88,374 76,380 Z' },
+  { muscle: 'Calves',
+    d: 'M 124,380 Q 134,408 130,438 Q 122,448 110,444 L 106,420 L 104,382 Q 112,374 124,380 Z' }
 ]
 
+// Decorative front pieces — never muscles, always neutral.
+const FRONT_DECOR = (
+  <g fill={DECOR_TONE} stroke={UNTRAINED_STROKE} strokeWidth={STROKE_W} strokeLinejoin="round">
+    {/* Head */}
+    <ellipse cx="100" cy="32" rx="22" ry="26" />
+    {/* Neck */}
+    <path d="M 88,54 L 112,54 L 114,72 L 86,72 Z" />
+    {/* Hips/pelvis transition */}
+    <path d="M 74,232 Q 100,246 126,232 L 128,254 Q 100,264 72,254 Z" />
+    {/* Knees */}
+    <ellipse cx="86" cy="370" rx="11" ry="6" />
+    <ellipse cx="114" cy="370" rx="11" ry="6" />
+    {/* Hands */}
+    <ellipse cx="38" cy="278" rx="10" ry="12" />
+    <ellipse cx="162" cy="278" rx="10" ry="12" />
+    {/* Feet */}
+    <path d="M 70,446 L 96,446 L 98,464 L 68,464 Z" />
+    <path d="M 104,446 L 130,446 L 132,464 L 102,464 Z" />
+  </g>
+)
+
+// ──────────────────────────────────────────────────────────────────────────
+// BACK VIEW — same viewBox, mirrored muscle groups
+// ──────────────────────────────────────────────────────────────────────────
 const BACK_ZONES = [
-  { muscle: 'Shoulders',  d: 'M 62,54 Q 48,58 46,72 Q 50,82 60,82 L 66,68 Z' },
-  { muscle: 'Shoulders',  d: 'M 98,54 Q 112,58 114,72 Q 110,82 100,82 L 94,68 Z' },
-  { muscle: 'Back',       d: 'M 62,54 Q 80,50 98,54 L 104,112 Q 100,150 96,172 Q 80,180 64,172 Q 60,150 56,112 Z' },
-  { muscle: 'Triceps',    d: 'M 44,80 Q 38,98 42,120 Q 48,130 54,126 L 56,92 Q 54,82 50,80 Z' },
-  { muscle: 'Triceps',    d: 'M 116,80 Q 122,98 118,120 Q 112,130 106,126 L 104,92 Q 106,82 110,80 Z' },
-  { muscle: 'Forearms',   d: 'M 38,130 Q 30,150 34,174 Q 38,184 46,182 L 48,150 Q 48,138 42,128 Z' },
-  { muscle: 'Forearms',   d: 'M 122,130 Q 130,150 126,174 Q 122,184 114,182 L 112,150 Q 112,138 118,128 Z' },
-  { muscle: 'Glutes',     d: 'M 60,184 Q 80,180 100,184 L 102,226 Q 80,238 58,226 Z' },
-  { muscle: 'Hamstrings', d: 'M 62,236 Q 54,266 60,300 Q 64,316 74,314 Q 78,298 78,274 L 78,234 Q 70,232 62,236 Z' },
-  { muscle: 'Hamstrings', d: 'M 98,236 Q 106,266 100,300 Q 96,316 86,314 Q 82,298 82,274 L 82,234 Q 90,232 98,236 Z' },
-  { muscle: 'Calves',     d: 'M 62,322 Q 58,346 64,360 Q 70,368 76,364 L 78,330 Q 70,318 62,322 Z' },
-  { muscle: 'Calves',     d: 'M 98,322 Q 102,346 96,360 Q 90,368 84,364 L 82,330 Q 90,318 98,322 Z' }
+  // Rear deltoids
+  { muscle: 'Shoulders',
+    d: 'M 86,72 Q 70,76 58,86 Q 50,98 52,114 Q 64,116 76,110 L 86,100 Z' },
+  { muscle: 'Shoulders',
+    d: 'M 114,72 Q 130,76 142,86 Q 150,98 148,114 Q 136,116 124,110 L 114,100 Z' },
+
+  // Back (traps + lats as one Back muscle)
+  { muscle: 'Back',
+    d: 'M 86,72 Q 100,68 114,72 Q 122,90 128,118 Q 132,170 124,210 Q 110,232 100,232 Q 90,232 76,210 Q 68,170 72,118 Q 78,90 86,72 Z' },
+
+  // Triceps (mirror biceps shapes)
+  { muscle: 'Triceps',
+    d: 'M 52,114 Q 44,128 42,154 Q 44,168 54,170 Q 62,166 64,156 L 70,128 Q 62,116 52,114 Z' },
+  { muscle: 'Triceps',
+    d: 'M 148,114 Q 156,128 158,154 Q 156,168 146,170 Q 138,166 136,156 L 130,128 Q 138,116 148,114 Z' },
+
+  // Forearms (same shape both views)
+  { muscle: 'Forearms',
+    d: 'M 42,160 Q 34,184 32,216 Q 32,244 40,260 Q 50,260 54,250 L 58,204 Q 56,182 50,170 Z' },
+  { muscle: 'Forearms',
+    d: 'M 158,160 Q 166,184 168,216 Q 168,244 160,260 Q 150,260 146,250 L 142,204 Q 144,182 150,170 Z' },
+
+  // Glutes
+  { muscle: 'Glutes',
+    d: 'M 72,236 Q 100,232 128,236 Q 132,264 124,280 Q 100,288 76,280 Q 68,264 72,236 Z' },
+
+  // Hamstrings
+  { muscle: 'Hamstrings',
+    d: 'M 76,284 Q 66,310 64,350 Q 66,366 80,372 Q 92,372 96,360 L 98,294 Q 92,284 76,284 Z' },
+  { muscle: 'Hamstrings',
+    d: 'M 124,284 Q 134,310 136,350 Q 134,366 120,372 Q 108,372 104,360 L 102,294 Q 108,284 124,284 Z' },
+
+  // Calves
+  { muscle: 'Calves',
+    d: 'M 76,386 Q 66,412 70,440 Q 78,450 90,446 L 94,422 L 96,388 Q 88,380 76,386 Z' },
+  { muscle: 'Calves',
+    d: 'M 124,386 Q 134,412 130,440 Q 122,450 110,446 L 106,422 L 104,388 Q 112,380 124,386 Z' }
 ]
+
+const BACK_DECOR = (
+  <g fill={DECOR_TONE} stroke={UNTRAINED_STROKE} strokeWidth={STROKE_W} strokeLinejoin="round">
+    {/* Head (back of head — no features) */}
+    <ellipse cx="100" cy="32" rx="22" ry="26" />
+    {/* Neck */}
+    <path d="M 88,54 L 112,54 L 114,72 L 86,72 Z" />
+    {/* Knees */}
+    <ellipse cx="86" cy="376" rx="11" ry="6" />
+    <ellipse cx="114" cy="376" rx="11" ry="6" />
+    {/* Hands */}
+    <ellipse cx="38" cy="278" rx="10" ry="12" />
+    <ellipse cx="162" cy="278" rx="10" ry="12" />
+    {/* Feet (heels) */}
+    <path d="M 70,446 L 96,446 L 98,464 L 68,464 Z" />
+    <path d="M 104,446 L 130,446 L 132,464 L 102,464 Z" />
+  </g>
+)
 
 export default function BodyFigure({ side = 'front', musclesByName, selectedName, onSelect, label }) {
   const zones = side === 'back' ? BACK_ZONES : FRONT_ZONES
+  const decor = side === 'back' ? BACK_DECOR : FRONT_DECOR
+
   return (
     <div className="relative">
       {label && (
-        <div className="text-center text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-1">
+        <div className="text-center text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1.5">
           {label}
         </div>
       )}
       <svg
-        viewBox="0 0 160 380"
-        className="block w-full max-w-[170px] mx-auto"
-        style={{ aspectRatio: '160/380' }}
+        viewBox="0 0 200 480"
+        className="block w-full mx-auto"
+        style={{ aspectRatio: '200/480', maxWidth: 200 }}
       >
-        {/* Decoratives — head, neck, hands, feet */}
-        <g fill={BODY_FILL} stroke={BODY_STROKE} strokeWidth="0.7" strokeLinejoin="round">
-          <ellipse cx="80" cy="22" rx="15" ry="17" />
-          <path d="M 72,38 L 88,38 L 90,52 L 70,52 Z" />
-          <circle cx="36" cy="190" r="7" />
-          <circle cx="124" cy="190" r="7" />
-          <ellipse cx="72" cy="368" rx="8" ry="5" />
-          <ellipse cx="88" cy="368" rx="8" ry="5" />
-        </g>
+        {/* Soft body-tone backdrop so untrained muscles read as part of a body */}
+        <defs>
+          <filter id={`glow-${side}`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-        {/* Muscle zones */}
+        {decor}
+
         {zones.map((z, i) => {
           const muscle = musclesByName[z.muscle]
           const level = muscle?.level ?? 0
           const tier = tierForLevel(level)
           const isSelected = selectedName === z.muscle
-          const fill = level > 0 ? tier.color : UNTRAINED_FILL
-          const stroke = isSelected ? '#ffffff' : (level > 0 ? 'rgba(0,0,0,0.15)' : BODY_STROKE)
-          const strokeWidth = isSelected ? 1.6 : 0.7
+          const isElite = level >= 13 // Diamond+ gets the purple glow treatment
+          const fill = level > 0 ? tier.color : BODY_TONE
+          const stroke = isSelected ? '#ffffff' : STROKE
+          const strokeWidth = isSelected ? 2 : STROKE_W
+
           return (
             <path
               key={`${z.muscle}-${i}`}
@@ -84,8 +191,10 @@ export default function BodyFigure({ side = 'front', musclesByName, selectedName
               onClick={() => onSelect?.(z.muscle)}
               style={{
                 cursor: 'pointer',
-                filter: level > 0 ? `drop-shadow(0 0 6px ${tier.color}55)` : undefined,
-                transition: 'filter 200ms, stroke-width 150ms'
+                filter: level > 0
+                  ? `drop-shadow(0 0 ${isElite ? 10 : 5}px ${tier.color}${isElite ? 'cc' : '88'})`
+                  : undefined,
+                transition: 'filter 220ms, stroke-width 150ms'
               }}
             />
           )

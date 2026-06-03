@@ -1,22 +1,21 @@
-// Muscle tier system: each muscle level maps to a ranked tier (Bronze→Legend)
-// with three sub-ranks (I, II, III). Mirrors the RPG/competitive feel of the
-// reference screen. Lives next to xp.js but is self-contained so it can be
-// swapped without touching the XP curve.
+// Muscle tier system. Tier names stay traditional (so the rankings cards
+// can read "GOLD I", "SILVER III"), but colors now follow the strength
+// gradient: gray → blue → teal → gold → orange → purple → red.
 
 export const TIERS = [
-  { name: 'Bronze',   color: '#cd7f32' },
-  { name: 'Silver',   color: '#c0c0c0' },
-  { name: 'Gold',     color: '#ffcc4d' },
-  { name: 'Platinum', color: '#c5d0e6' },
-  { name: 'Diamond',  color: '#7ee8ff' },
-  { name: 'Master',   color: '#b388ff' }
+  { name: 'Bronze',   color: '#4dabf7' }, // beginner — blue
+  { name: 'Silver',   color: '#38e1b0' }, // active   — teal
+  { name: 'Gold',     color: '#ffcc4d' }, // strong   — gold
+  { name: 'Platinum', color: '#ff8a3d' }, // powerful — orange
+  { name: 'Diamond',  color: '#b388ff' }, // elite    — purple
+  { name: 'Master',   color: '#d68aff' }  // ascended — brighter purple
 ]
 
-const LEGEND = { name: 'Legend', color: '#ff5e7a' }
-const UNRANKED_COLOR = '#5b6478'
+const LEGEND = { name: 'Legend', color: '#ff5e7a' } // beyond — red
+const UNRANKED_COLOR = '#6b7385'
 
 // Levels 1–18 → six tiers × three sub-ranks (Bronze I → Master III).
-// Levels 19+ → Legend (no sub-rank).
+// Levels 19+ → Legend.
 export function tierForLevel(level) {
   if (!level || level <= 0) {
     return { name: 'Unranked', sub: '', label: 'Unranked', color: UNRANKED_COLOR, isUnranked: true }

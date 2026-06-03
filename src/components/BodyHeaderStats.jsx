@@ -1,7 +1,7 @@
 import { levelFromXP } from '../lib/xp.js'
 
-// Compact top status row: avatar with progress ring, level + XP, streak,
-// weekly XP, info icon. Mirrors the reference's top bar.
+// Compact top status bar. Fitness-only stats — no fake currencies/gems/coins.
+// Pills: streak (flame) + weekly XP (bolt). Avatar ring shows level progress.
 export default function BodyHeaderStats({ user }) {
   const lvl = levelFromXP(user.totalXP)
   const ringCircumference = 2 * Math.PI * 22
@@ -31,8 +31,8 @@ export default function BodyHeaderStats({ user }) {
 
       <div className="flex-1" />
 
-      <Pill icon="🔥" value={user.streak} accent="#ff8a3d" />
-      <Pill icon="💎" value={user.weeklyXP.toLocaleString()} accent="#7ee8ff" />
+      <Pill icon="🔥" value={user.streak}                         accent="#ff8a3d" />
+      <Pill icon="⚡" value={user.weeklyXP.toLocaleString()}       accent="#38e1b0" />
 
       <button className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50 text-sm font-bold">
         ?
