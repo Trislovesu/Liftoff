@@ -11,8 +11,8 @@ export default {
           600: '#2a2a2a'
         },
         accent: {
-          DEFAULT: '#e0e0e0',
-          glow: '#ffffff'
+          DEFAULT: '#888888',
+          glow: '#aaaaaa'
         },
         xp: '#38e1b0',
         danger: '#ff5e7a',
@@ -21,7 +21,7 @@ export default {
         diamond: '#7ee8ff'
       },
       boxShadow: {
-        glow: '0 0 30px rgba(255,255,255,0.15)',
+        glow: '0 0 30px rgba(255,255,255,0.08)',
         card: '0 8px 24px rgba(0,0,0,0.4)'
       },
       fontFamily: {

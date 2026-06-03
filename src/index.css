@@ -41,7 +41,7 @@ body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color:
 
 /* subtle muscle glow */
 .muscle-glow {
-  filter: drop-shadow(0 0 8px rgba(124,92,255,0.6));
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
 }
 
 /* "recently trained" pulse for body zones + grid dots */
