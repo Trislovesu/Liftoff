@@ -43,3 +43,12 @@ body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color:
 .muscle-glow {
   filter: drop-shadow(0 0 8px rgba(124,92,255,0.6));
 }
+
+/* "recently trained" pulse for body zones + grid dots */
+@keyframes muscle-pulse {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
+}
+.muscle-pulse {
+  animation: muscle-pulse 1.8s ease-in-out infinite;
+}
