@@ -137,7 +137,7 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 ## Bodygraph implementation
 
 - Uses `src/assets/bodygraph.png` (a static muscle-anatomy reference image) as the visual base.
-- 31 SVG `<path>` overlay zones positioned with percent coords (viewBox 0–100, `preserveAspectRatio="none"`). Multiple paths can share a muscle name (eg, left+right pec both = "Chest", and "Back" is split into traps + 2 rhomboids + 2 lats + lower-back).
+- 30 SVG `<path>` overlay zones positioned with percent coords (viewBox 0–100, `preserveAspectRatio="none"`). Multiple paths can share a muscle name (eg, left+right pec both = "Chest", and "Back" has 4 paths: traps spear + L/R lat wings + center lower-back).
 - **Resting state is intentionally subtle** — untrained muscles are invisible, ranked muscles show only a faint tinted outline. Tier glow + animation (`tier-diamond`, `tier-master`, `tier-legend` keyframes in `index.css`) fires *only when that muscle is selected*, not constantly. This was a deliberate change after feedback that the always-on glow was distracting.
 - **Built-in overlay editor:** flip `EDIT_MODE = true` in `FrontBackBodyMap.jsx` to use. Supports:
   - **Drag** any overlay to reposition
@@ -239,6 +239,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Overlays fully redrawn:** Tristan used the editor's Draw Mode to retrace every muscle from scratch. New layout has 30 paths total (4 Glutes paths instead of 2, polyline-style shapes instead of bezier curves for most zones). Some muscles missing from the new pass (hamstrings on back, rhomboids) — if needed, redraw via the editor again.
 - **Editor v2 (FrontBackBodyMap):** added Draw mode (click points to define a polygon), Delete selected, muscle-relabel dropdown, in-SVG label tag, unified `items` state model in place of separate transforms array. `EDIT_MODE = true` flag at top of the file.
 - **Visual polish:** body-map glow toned down (resting = faint outline only, glow + tier effects only when selected). Buttons modernized in `index.css` — glass gradient + white border + inset highlight + soft outer glow. Cards refined with translucent bg + backdrop blur + top-edge highlight.
 - **Major feature pass:** ~75-exercise library; XP formula now volume-weighted (`(weight*reps)*0.04` bonus + multiplier up to 2.2×); streak replaced by `totalWorkouts` counter; Leagues/Analytics tabs removed (only Bodygraph + Gallery); Gallery is now a real pump-pic feed with EXIF check + funny rejection messages; profile pictures via Supabase Storage (or emoji default) — post-signup prompt + editable modal in Profile; workout history clickable → `/history/:id` shows full set/rep/weight breakdown; `lastSessions` drives subtle "last time" hint in WorkoutLogger; leaderboard rows use avatar instead of tier letter + new Rank sort tab; tier-glow effects on body map; muscle-group filter in WorkoutBuilder (relevance-sorted library); Custom-exercise button removed; sanity check before workout finish; Supabase schema v2 with `total_workouts`, `profile_pic_url`, `last_sessions` columns + `pump_photos` table + new RPCs.
