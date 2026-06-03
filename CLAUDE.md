@@ -137,9 +137,18 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 ## Bodygraph implementation
 
 - Uses `src/assets/bodygraph.png` (a static muscle-anatomy reference image) as the visual base.
-- 28 SVG `<path>` overlay zones positioned with percent coords (viewBox 0–100, `preserveAspectRatio="none"`).
-- Tier glow effects: at level ≥13 muscles pulse via CSS keyframes (`tier-diamond`, `tier-master`, `tier-legend`). Class applied in `FrontBackBodyMap.jsx`.
-- **Built-in overlay editor:** flip `EDIT_MODE = true` in `FrontBackBodyMap.jsx` to drag/arrow-key zones into place. "Copy Paths" button on the editor panel exports the new array — paste it back over `OVERLAYS`, set `EDIT_MODE = false`. There's also `DEBUG_OVERLAYS` for hitbox visibility without drag.
+- 31 SVG `<path>` overlay zones positioned with percent coords (viewBox 0–100, `preserveAspectRatio="none"`). Multiple paths can share a muscle name (eg, left+right pec both = "Chest", and "Back" is split into traps + 2 rhomboids + 2 lats + lower-back).
+- **Resting state is intentionally subtle** — untrained muscles are invisible, ranked muscles show only a faint tinted outline. Tier glow + animation (`tier-diamond`, `tier-master`, `tier-legend` keyframes in `index.css`) fires *only when that muscle is selected*, not constantly. This was a deliberate change after feedback that the always-on glow was distracting.
+- **Built-in overlay editor:** flip `EDIT_MODE = true` in `FrontBackBodyMap.jsx` to use. Supports:
+  - **Drag** any overlay to reposition
+  - **Arrow keys** nudge selected by 0.5 (Shift = 0.1)
+  - **Muscle dropdown** in panel: relabel any overlay's muscle on the fly
+  - **🗑 Delete / Delete key** removes the selected overlay (with confirm)
+  - **✎ Draw New** enters polygon-draw mode: click points on the body (≥3), pick muscle from dropdown, Enter/✓ Finish closes the path and appends it. Backspace undoes last point, Esc cancels.
+  - **In-SVG label tag** shows selected overlay's muscle name floating near its centroid
+  - **Copy Paths** exports the final OVERLAYS array (drawn + deleted + relabeled + nudged all baked in)
+- There's also `DEBUG_OVERLAYS` flag for static red-hitbox visualization without the editor panel.
+- Internal model: the editor stores everything in a single `items` array (`{ muscle, d, transform }`), not separate arrays for transforms/drafts/deletes. Cleaner state, easier export.
 
 ## Pump pic flow
 
@@ -167,6 +176,12 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - Dark gray + white theme. Accent is muted gray (`#888888`), not purple.
 - Mobile-first. The "viewport" is a single column max-w-md mx-auto.
 - Persisted user data must never break across deploys. Use `JSON.parse` try/catch + null fallback in storage helpers.
+
+## Visual design conventions (current)
+
+- **Buttons:** glass-like — thin white border + inset top-highlight + soft outer white glow on hover. Defined in `src/index.css` under `.btn-primary` / `.btn-ghost`. Don't replace these with flat-fill buttons.
+- **Cards:** `.card` uses a translucent bg + backdrop-blur + inset top-highlight + drop shadow. Don't use raw `bg-bg-800` divs for content cards.
+- **Body overlays:** rest = invisible/dim outline only; selected = soft tier-color glow + white stroke. Tier pulse/fire only when selected. **Don't** restore always-on glow.
 
 ## Common gotchas
 
@@ -215,7 +230,15 @@ git push
 | `lib/exifDate.js` | `readPhotoTakenAt` + `checkPhotoIsRecent` (uses funny rejections). |
 | `lib/funnyRejects.js` | `funnyOldPhotoReject(ageMs)`, `randomCompliment()`, `lastTimeNudge(weight, reps)`. |
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
-| `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + edit mode. |
+| `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
 | `supabase/schema.sql` | Schema, RPCs, storage policies. Idempotent. |
+
+## Recent changes log
+
+Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
+
+- **Editor v2 (FrontBackBodyMap):** added Draw mode (click points to define a polygon), Delete selected, muscle-relabel dropdown, in-SVG label tag, unified `items` state model in place of separate transforms array. `EDIT_MODE = true` flag at top of the file.
+- **Visual polish:** body-map glow toned down (resting = faint outline only, glow + tier effects only when selected). Buttons modernized in `index.css` — glass gradient + white border + inset highlight + soft outer glow. Cards refined with translucent bg + backdrop blur + top-edge highlight.
+- **Major feature pass:** ~75-exercise library; XP formula now volume-weighted (`(weight*reps)*0.04` bonus + multiplier up to 2.2×); streak replaced by `totalWorkouts` counter; Leagues/Analytics tabs removed (only Bodygraph + Gallery); Gallery is now a real pump-pic feed with EXIF check + funny rejection messages; profile pictures via Supabase Storage (or emoji default) — post-signup prompt + editable modal in Profile; workout history clickable → `/history/:id` shows full set/rep/weight breakdown; `lastSessions` drives subtle "last time" hint in WorkoutLogger; leaderboard rows use avatar instead of tier letter + new Rank sort tab; tier-glow effects on body map; muscle-group filter in WorkoutBuilder (relevance-sorted library); Custom-exercise button removed; sanity check before workout finish; Supabase schema v2 with `total_workouts`, `profile_pic_url`, `last_sessions` columns + `pump_photos` table + new RPCs.
