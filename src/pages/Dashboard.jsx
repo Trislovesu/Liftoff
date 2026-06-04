@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
 import { levelFromXP, rankFor } from '../lib/xp.js'
+import { rpcGetPumpPhotos } from '../lib/supabase.js'
+import { tierForLevel } from '../lib/tiers.js'
 
 function weeklyChartPoints(history) {
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -41,21 +44,57 @@ function recentSummary(history) {
   })
 }
 
+function dailyMotivation(user, history) {
+  const day = Math.floor(Date.now() / 86400000)
+  const recent = history[0]
+  const options = [
+    `Level ${levelFromXP(user.totalXP).level} is looking sharp. Stack another clean session.`,
+    user.weeklyXP > 0 ? `${user.weeklyXP.toLocaleString()} XP this week. Keep the pressure on.` : 'Fresh week. First lift sets the tone.',
+    recent ? `Last session hit +${recent.xp} XP. Today, beat one number.` : 'Start simple. Log the first set and momentum follows.',
+    (user.totalWorkouts || 0) > 0 ? `${user.totalWorkouts} workouts logged. Build the next rep.` : 'Your first logged workout is waiting.'
+  ]
+  return options[day % options.length]
+}
+
+function muscleRankings(user) {
+  return [...user.muscles]
+    .sort((a, b) => (b.level * 1000 + b.xp) - (a.level * 1000 + a.xp))
+    .slice(0, 5)
+    .map((m, index) => {
+      const tier = tierForLevel(m.level)
+      const fatigue = Math.min(98, Math.max(12, Math.round((m.level * 8 + m.xp / 8 + index * 7) % 100)))
+      const status = fatigue > 75 ? 'Critical fatigue' : fatigue > 42 ? 'Recovering' : 'Optimal'
+      return { ...m, tier, fatigue, status }
+    })
+}
+
 export default function Dashboard() {
   const { state } = useApp()
   const { user, history } = state
+  const [pumpPhoto, setPumpPhoto] = useState(null)
   const lvl = levelFromXP(user.totalXP)
   const rank = rankFor(user.totalXP)
   const recent = recentSummary(history)
   const chartPoints = weeklyChartPoints(history)
   const totalSets = history.reduce((sum, h) => sum + h.exercises.reduce((a, ex) => a + (ex.sets?.length || 0), 0), 0)
   const weeklyGain = user.weeklyXP > 0 ? '+12%' : '0%'
+  const motivation = useMemo(() => dailyMotivation(user, history), [user, history])
+  const rankings = useMemo(() => muscleRankings(user), [user])
+  const recommended = rankings.find(m => m.fatigue < 60)?.name || rankings[0]?.name || 'Chest'
+
+  useEffect(() => {
+    let dead = false
+    rpcGetPumpPhotos(user.username)
+      .then(photos => { if (!dead) setPumpPhoto(photos[0] || null) })
+      .catch(() => { if (!dead) setPumpPhoto(null) })
+    return () => { dead = true }
+  }, [user.username])
 
   return (
     <div className="space-y-8">
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <p className="metric-label mb-1">Welcome back, champ</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">You're crushing it.</h1>
+        <p className="metric-label mb-1">Welcome back, {user.username}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{motivation}</h1>
       </motion.section>
 
       <section className="glass-card p-6 relative overflow-hidden">
@@ -100,6 +139,41 @@ export default function Dashboard() {
       </section>
 
       <section className="space-y-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-3">
+            <h2 className="text-2xl font-extrabold tracking-tight">Muscle Rankings</h2>
+            <Link to="/body" className="shrink-0 px-3 py-1 bg-bg-600 rounded-full metric-label text-accent border border-accent/20">
+              Train {recommended}
+            </Link>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {rankings.map((m, i) => (
+            <Link key={m.name} to="/body" className="glass-card p-4 block hover:border-accent/40 transition">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-xl border flex items-center justify-center font-extrabold"
+                    style={{ color: m.tier.color, background: `${m.tier.color}18`, borderColor: `${m.tier.color}44` }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold truncate">{m.name}</h3>
+                    <p className="metric-label" style={{ color: m.tier.color }}>{m.tier.name} • {m.status}</p>
+                  </div>
+                </div>
+                <span className="font-extrabold text-sm" style={{ color: m.tier.color }}>{m.fatigue}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${m.fatigue}%`, background: m.tier.color }} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-extrabold tracking-tight">Recent Lifts</h2>
           <Link to="/profile" className="metric-label text-accent">View all</Link>
@@ -134,16 +208,22 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section className="relative h-48 rounded-2xl overflow-hidden border border-white/10 bg-bg-800">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,0,51,0.25),transparent_35%),linear-gradient(135deg,#2e2e2e,#0a0a0a)]" />
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute left-8 top-8 w-24 h-24 border border-accent/50 rotate-12" />
-          <div className="absolute right-8 bottom-8 w-32 h-2 bg-accent/60 blur-sm" />
-        </div>
+      <section className="relative h-52 rounded-3xl overflow-hidden border border-white/10 bg-bg-800">
+        {pumpPhoto ? (
+          <img src={pumpPhoto.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,0,51,0.25),transparent_35%),linear-gradient(135deg,#2e2e2e,#0a0a0a)]" />
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute left-8 top-8 w-24 h-24 border border-accent/50 rotate-12" />
+              <div className="absolute right-8 bottom-8 w-32 h-2 bg-accent/60 blur-sm" />
+            </div>
+          </>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg-900 via-bg-900/40 to-transparent" />
         <div className="absolute bottom-5 left-6">
           <p className="metric-label text-accent mb-1">Pro advice</p>
-          <h3 className="text-xl font-extrabold">Consistency &gt; Intensity.</h3>
+          <h3 className="text-xl font-extrabold pr-6">{pumpPhoto?.caption || 'You already proved you can show up. Now make the next set count.'}</h3>
         </div>
       </section>
 

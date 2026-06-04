@@ -62,6 +62,31 @@ export async function rpcGetPumpPhotos(username) {
   return data || []
 }
 
+export async function rpcGetGymStatus() {
+  const { data, error } = await supabase.rpc('app_get_gym_status')
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function rpcAdminUpdateGymStatus(username, pin_hash, status) {
+  const { data, error } = await supabase.rpc('app_admin_update_gym_status', {
+    p_username: username,
+    p_pin_hash: pin_hash,
+    p_status: status
+  })
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function rpcAdminListUsers(username, pin_hash) {
+  const { data, error } = await supabase.rpc('app_admin_list_users', {
+    p_username: username,
+    p_pin_hash: pin_hash
+  })
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
 // ─── Storage helpers ───────────────────────────────────────────────────
 // Public bucket "user-content" must exist (see schema.sql comments).
 

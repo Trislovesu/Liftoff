@@ -127,7 +127,7 @@ export default function WorkoutLogger() {
           const last = state.user.lastSessions?.[pbKey]
           const nudge = last ? lastTimeNudge(last.weight, last.reps) : null
           return (
-            <div key={ex.id} className="glass-card p-4 relative overflow-hidden hover:border-accent/40 transition">
+            <div key={ex.id} className="glass-card rounded-3xl p-4 relative overflow-hidden hover:border-accent/40 transition">
               <div className="flex justify-between items-start mb-4">
                 <div className="min-w-0">
                   <h2 className="text-2xl font-extrabold truncate">{ex.name}</h2>
@@ -160,19 +160,19 @@ export default function WorkoutLogger() {
                 {ex.sets.map((s, j) => {
                   const active = !s.completed && ex.sets.slice(0, j).every(prev => prev.completed)
                   return (
-                    <div key={j} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-lg border transition-all ${
+                    <div key={j} className={`grid grid-cols-12 gap-2 items-center p-2.5 rounded-2xl border transition-all ${
                       s.completed ? 'bg-bg-950/50 border-transparent' : active ? 'bg-bg-700/40 border-accent/30 kinetic-glow' : 'bg-bg-950/40 border-transparent'
                     }`}>
                       <div className={`col-span-2 font-semibold ${active ? 'text-accent' : 'text-white/70'}`}>{j + 1}</div>
                       <input type="number" min="0" value={s.weight}
                         onChange={e => updateSet(i, j, { weight: Number(e.target.value) })}
-                        className="col-span-4 w-full bg-bg-950 border-b border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1 rounded" />
+                        className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
                       <input type="number" min="0" value={s.reps}
                         onChange={e => updateSet(i, j, { reps: Number(e.target.value) })}
-                        className="col-span-4 w-full bg-bg-950 border-b border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1 rounded" />
+                        className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
                       <div className="col-span-2 flex justify-end">
                         <button onClick={() => updateSet(i, j, { completed: !s.completed })}
-                          className={`w-8 h-8 rounded flex items-center justify-center border transition ${
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center border transition ${
                             s.completed ? 'bg-accent border-accent text-white shadow-[0_0_10px_rgba(255,0,51,0.35)]' : 'border-white/20 text-white/45 hover:border-accent hover:text-accent'
                           }`}>
                           <span className="material-symbols-outlined text-[18px]">check</span>
@@ -186,7 +186,7 @@ export default function WorkoutLogger() {
                 })}
               </div>
 
-              <button onClick={() => addSet(i)} className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-lg metric-label hover:bg-bg-700/50 hover:text-accent hover:border-accent/50 transition flex items-center justify-center gap-2">
+              <button onClick={() => addSet(i)} className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl metric-label hover:bg-bg-700/50 hover:text-accent hover:border-accent/50 transition flex items-center justify-center gap-2">
                 <span className="material-symbols-outlined text-sm">add</span> Add set
               </button>
             </div>

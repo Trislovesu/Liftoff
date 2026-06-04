@@ -14,6 +14,7 @@ export default function Profile() {
   const lvl = levelFromXP(user.totalXP)
   const { current, next, xpToNext } = rankFor(user.totalXP)
   const [picOpen, setPicOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef(null)
 
@@ -57,29 +58,40 @@ export default function Profile() {
         <Stat label="Total XP" value={user.totalXP.toLocaleString()} />
       </div>
 
-      <h2 className="text-sm font-bold uppercase tracking-wider text-white/60 mb-2 px-1">History</h2>
-      {history.length === 0 ? (
-        <div className="card p-6 text-center text-white/50 text-sm">No workouts yet.</div>
-      ) : (
-        <div className="space-y-2">
-          {history.map(h => (
-            <Link key={h.id} to={`/history/${h.id}`}
-              className="card p-3 flex items-center gap-3 hover:bg-white/5 transition">
-              <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center text-accent">🏋️</div>
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold truncate">{h.workoutName}</div>
-                <div className="text-xs text-white/40">
-                  {new Date(h.date).toLocaleString()} • {h.exercises.length} exercises
+      <div className="card p-3">
+        <button
+          onClick={() => setHistoryOpen(v => !v)}
+          className="w-full flex items-center justify-between gap-3"
+        >
+          <div className="text-left">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-white/60">History</h2>
+            <div className="text-xs text-white/35">{history.length} logged workouts</div>
+          </div>
+          <span className="material-symbols-outlined text-accent transition" style={{ transform: historyOpen ? 'rotate(180deg)' : undefined }}>expand_more</span>
+        </button>
+        {historyOpen && (
+          <div className="space-y-2 mt-3">
+            {history.length === 0 ? (
+              <div className="p-4 text-center text-white/50 text-sm">No workouts yet.</div>
+            ) : history.map(h => (
+              <Link key={h.id} to={`/history/${h.id}`}
+                className="bg-bg-950/40 border border-white/10 rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition">
+                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center text-accent">🏋️</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold truncate">{h.workoutName}</div>
+                  <div className="text-xs text-white/40">
+                    {new Date(h.date).toLocaleString()} • {h.exercises.length} exercises
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="font-extrabold text-xp">+{h.xp}</div>
-                <div className="text-[10px] text-white/40">XP</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+                <div className="text-right">
+                  <div className="font-extrabold text-xp">+{h.xp}</div>
+                  <div className="text-[10px] text-white/40">XP</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="mt-6 flex justify-center">
         <button onClick={() => { if (confirm('Sign out?')) actions.signOut() }} className="btn-ghost text-sm">

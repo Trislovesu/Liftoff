@@ -32,8 +32,28 @@ create table if not exists public.pump_photos (
 );
 create index if not exists pump_photos_username_idx on public.pump_photos(username, taken_at desc);
 
+create table if not exists public.gym_status (
+  id int primary key default 1 check (id = 1),
+  locations jsonb not null default '[]'::jsonb,
+  message text not null default 'Gym status updated',
+  updated_by text,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.gym_status (id, locations, message)
+values (
+  1,
+  '[
+    {"key":"zion","name":"Zion Fitness House","detail":"Highway Plaza","status":"open"},
+    {"key":"sunplaza","name":"SunPlaza","detail":"SunPlaza","status":"open"}
+  ]'::jsonb,
+  'Gym status updated'
+)
+on conflict (id) do nothing;
+
 alter table public.users      enable row level security;
 alter table public.pump_photos enable row level security;
+alter table public.gym_status  enable row level security;
 
 -- ---------- RPC: signup ----------
 create or replace function public.app_signup(
@@ -128,15 +148,66 @@ language sql security definer set search_path = public as $$
   order by taken_at desc limit 200;
 $$;
 
+-- ---------- RPC: gym status ----------
+create or replace function public.app_get_gym_status()
+returns jsonb language sql security definer set search_path = public as $$
+  select to_jsonb(g) from public.gym_status g where id = 1;
+$$;
+
+create or replace function public.app_admin_update_gym_status(
+  p_username text, p_pin_hash text, p_status jsonb
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u public.users; g public.gym_status;
+begin
+  select * into u from public.users where username = lower(trim(p_username));
+  if u.id is null then raise exception 'User not found'; end if;
+  if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
+  if u.username <> 'tris' then raise exception 'Admin only'; end if;
+
+  update public.gym_status set
+    locations = coalesce(p_status->'locations', locations),
+    message = coalesce(nullif(p_status->>'message', ''), 'Gym status updated'),
+    updated_by = u.username,
+    updated_at = now()
+  where id = 1
+  returning * into g;
+
+  return to_jsonb(g);
+end; $$;
+
+create or replace function public.app_admin_list_users(
+  p_username text, p_pin_hash text
+) returns table (
+  username text, total_xp int, weekly_xp int, total_workouts int,
+  profile_pic_url text, created_at timestamptz
+) language plpgsql security definer set search_path = public as $$
+declare u public.users;
+begin
+  select * into u from public.users where username = lower(trim(p_username));
+  if u.id is null then raise exception 'User not found'; end if;
+  if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
+  if u.username <> 'tris' then raise exception 'Admin only'; end if;
+
+  return query
+    select u2.username, u2.total_xp, u2.weekly_xp, u2.total_workouts,
+           u2.profile_pic_url, u2.created_at
+    from public.users u2
+    order by u2.created_at desc;
+end; $$;
+
 -- Lock + grant
 revoke all on public.users from anon, authenticated;
 revoke all on public.pump_photos from anon, authenticated;
+revoke all on public.gym_status from anon, authenticated;
 grant execute on function public.app_signup(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_save_state(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_leaderboard() to anon, authenticated;
 grant execute on function public.app_save_pump_photo(text, text, text, timestamptz, text, int) to anon, authenticated;
 grant execute on function public.app_get_pump_photos(text) to anon, authenticated;
+grant execute on function public.app_get_gym_status() to anon, authenticated;
+grant execute on function public.app_admin_update_gym_status(text, text, jsonb) to anon, authenticated;
+grant execute on function public.app_admin_list_users(text, text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
 

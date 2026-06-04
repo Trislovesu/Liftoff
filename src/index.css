@@ -50,18 +50,18 @@ h1, h2, h3,
 
 @layer components {
   .card {
-    @apply bg-bg-800/90 border border-bg-700 rounded-lg backdrop-blur-md;
+    @apply bg-bg-800/90 border border-bg-700 rounded-2xl backdrop-blur-md;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
   }
   .card-grad {
     @apply card bg-card-grad;
   }
   .glass-card {
-    @apply bg-bg-800/80 border border-white/10 rounded-xl backdrop-blur-xl;
+    @apply bg-bg-800/80 border border-white/10 rounded-2xl backdrop-blur-xl;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   }
   .glass-input {
-    @apply bg-bg-800/80 border border-white/10 rounded-xl px-4 py-3 transition-all;
+    @apply bg-bg-800/80 border border-white/10 rounded-2xl px-4 py-3 transition-all;
   }
   .glass-input:focus-within {
     @apply border-accent/70;
@@ -74,7 +74,7 @@ h1, h2, h3,
     @apply font-extrabold tracking-tight;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded font-bold text-sm transition-all active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98];
     font-family: 'Sora', 'Geist', system-ui, sans-serif;
   }
   .btn-primary {
@@ -105,7 +105,7 @@ h1, h2, h3,
     @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10;
   }
   .input {
-    @apply bg-bg-950 border border-bg-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-white/30;
+    @apply bg-bg-950 border border-bg-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-white/30;
   }
   .label {
     @apply text-xs font-semibold uppercase tracking-wider text-white/50;
