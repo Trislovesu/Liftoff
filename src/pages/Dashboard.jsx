@@ -1,77 +1,132 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
-import { levelFromXP } from '../lib/xp.js'
-import XPProgressBar from '../components/XPProgressBar.jsx'
-import StatCard from '../components/StatCard.jsx'
-import RankCard from '../components/RankCard.jsx'
-import MuscleCard from '../components/MuscleCard.jsx'
-import Avatar from '../components/Avatar.jsx'
+import { levelFromXP, rankFor } from '../lib/xp.js'
+
+function weeklyChartPoints(history) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return d.toDateString()
+  })
+  const totals = days.map(day => history
+    .filter(h => new Date(h.date).toDateString() === day)
+    .reduce((sum, h) => sum + (h.xp || 0), 0)
+  )
+  const max = Math.max(1, ...totals)
+  return totals.map((v, i) => {
+    const x = (i / 6) * 400
+    const y = 88 - (v / max) * 72
+    return `${x},${y}`
+  }).join(' ')
+}
+
+function recentSummary(history) {
+  return history.slice(0, 4).map(h => {
+    const first = h.exercises?.[0]
+    const sets = h.exercises?.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0) || 0
+    const best = h.exercises
+      ?.flatMap(ex => ex.sets?.map(s => ({ ...s, name: ex.name, muscle: ex.primaryMuscle })) || [])
+      ?.sort((a, b) => (b.weight || 0) - (a.weight || 0))[0]
+    return {
+      id: h.id,
+      name: first?.name || h.workoutName,
+      workoutName: h.workoutName,
+      muscle: first?.primaryMuscle || 'Workout',
+      weight: best?.weight || 0,
+      reps: best?.reps || 0,
+      sets,
+      xp: h.xp || 0
+    }
+  })
+}
 
 export default function Dashboard() {
   const { state } = useApp()
   const { user, history } = state
   const lvl = levelFromXP(user.totalXP)
-  const recent = history.slice(0, 3)
-  const topMuscles = [...user.muscles]
-    .sort((a, b) => (b.level * 1000 + b.xp) - (a.level * 1000 + a.xp)).slice(0, 4)
+  const rank = rankFor(user.totalXP)
+  const recent = recentSummary(history)
+  const chartPoints = weeklyChartPoints(history)
+  const totalSets = history.reduce((sum, h) => sum + h.exercises.reduce((a, ex) => a + (ex.sets?.length || 0), 0), 0)
+  const weeklyGain = user.weeklyXP > 0 ? '+12%' : '0%'
 
   return (
-    <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="card-grad p-5 relative overflow-hidden">
-        <div className="flex items-center gap-3 mb-4">
-          <Avatar user={user} size={48} ring="#ff0033" />
-          <div className="min-w-0">
-            <div className="text-xs text-white/50 font-semibold">Welcome back</div>
-            <div className="text-xl font-extrabold truncate">{user.username}</div>
+    <div className="space-y-8">
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="metric-label mb-1">Welcome back, champ</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">You're crushing it.</h1>
+      </motion.section>
+
+      <section className="glass-card p-6 relative overflow-hidden">
+        <div className="absolute -top-16 -right-12 w-36 h-36 bg-accent/10 rounded-full blur-3xl" />
+        <div className="flex justify-between items-end mb-6 relative">
+          <div>
+            <h2 className="text-2xl font-extrabold text-accent tracking-tight">Weekly Progress</h2>
+            <p className="text-sm text-white/45">XP intensity</p>
           </div>
-          <div className="ml-auto text-right">
-            <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Level</div>
-            <div className="text-2xl font-extrabold text-accent leading-none">{lvl.level}</div>
+          <div className="text-right">
+            <span className="text-4xl font-extrabold text-accent tracking-tight">{weeklyGain}</span>
           </div>
         </div>
-        <XPProgressBar value={lvl.progress} color="#ff0033"
-          label={`${user.totalXP.toLocaleString()} XP`}
-          sub={`${(lvl.xpForLevel - lvl.xpIntoLevel).toLocaleString()} to Level ${lvl.level + 1}`} />
-      </motion.div>
 
-      <RankCard totalXP={user.totalXP} />
-
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Workouts" value={user.totalWorkouts || 0} sub="lifetime"  accent="#ff5357" icon="🏋️" />
-        <StatCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" accent="#ff0033" icon="⚡" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/workouts" className="btn-primary justify-center text-base py-3">▶  Start Workout</Link>
-        <Link to="/workouts/new" className="btn-ghost justify-center text-base py-3">＋ Create</Link>
-        <Link to="/body" className="btn-ghost justify-center text-base py-3">💪 Body Map</Link>
-        <Link to="/leaderboard" className="btn-ghost justify-center text-base py-3">🏆 Leaderboard</Link>
-      </div>
-
-      <section>
-        <div className="flex items-center justify-between mb-2 px-1">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white/60">Recent Workouts</h2>
+        <div className="h-40 w-full relative">
+          <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 400 100">
+            <defs>
+              <linearGradient id="dashLine" x1="0" x2="1">
+                <stop offset="0%" stopColor="#ffb3af" />
+                <stop offset="100%" stopColor="#ff0033" />
+              </linearGradient>
+            </defs>
+            <g stroke="rgba(255,255,255,0.08)" strokeWidth="1">
+              <line x1="0" x2="400" y1="25" y2="25" />
+              <line x1="0" x2="400" y1="55" y2="55" />
+              <line x1="0" x2="400" y1="85" y2="85" />
+            </g>
+            <polyline points={chartPoints} fill="none" stroke="url(#dashLine)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="400" cy={chartPoints.split(' ').at(-1)?.split(',')[1] || 16} r="5" fill="#ff0033" className="drop-shadow-[0_0_10px_rgba(255,0,51,0.8)]" />
+          </svg>
         </div>
+        <div className="flex justify-between mt-4 metric-label px-1">
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={`${d}-${i}`}>{d}</span>)}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-4">
+        <MetricCard label="Level" value={lvl.level} sub={`${Math.round(lvl.progress * 100)}%`} hot />
+        <MetricCard label="Rank" value={rank.current.name} sub={`${rank.xpToNext.toLocaleString()} XP`} />
+        <MetricCard label="Workouts" value={user.totalWorkouts || 0} sub="lifetime" />
+        <MetricCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" hot />
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-extrabold tracking-tight">Recent Lifts</h2>
+          <Link to="/profile" className="metric-label text-accent">View all</Link>
+        </div>
+
         {recent.length === 0 ? (
-          <div className="card p-5 text-center text-white/50 text-sm">
-            No workouts yet. Tap <span className="text-accent font-semibold">Start Workout</span> to begin.
+          <div className="glass-card p-6 text-center">
+            <p className="text-white/45 text-sm">No workouts yet.</p>
+            <Link to="/workouts" className="text-accent font-bold text-sm mt-2 inline-block">Start your first lift</Link>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {recent.map(h => (
-              <Link key={h.id} to={`/history/${h.id}`} className="card p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center text-accent">🏋️</div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold truncate">{h.workoutName}</div>
-                  <div className="text-xs text-white/40">
-                    {new Date(h.date).toLocaleDateString()} • {h.exercises.length} exercises
+              <Link key={h.id} to={`/history/${h.id}`} className="glass-card p-5 flex items-center gap-4 hover:border-accent/40 transition">
+                <div className="w-12 h-12 bg-bg-700 rounded-lg flex items-center justify-center text-accent">
+                  <span className="material-symbols-outlined">fitness_center</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg truncate">{h.name}</h3>
+                  <div className="flex gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-bg-600 rounded text-[10px] uppercase tracking-wider text-white/55">{h.muscle}</span>
+                    <span className="px-2 py-0.5 bg-bg-600 rounded text-[10px] uppercase tracking-wider text-white/55">+{h.xp} XP</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-white/40">XP</div>
-                  <div className="font-extrabold text-xp">+{h.xp}</div>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl font-extrabold">{h.weight || h.sets}<span className="text-xs text-white/45 ml-1">{h.weight ? 'LB' : 'SETS'}</span></p>
+                  <p className="metric-label">{h.sets} sets {h.reps ? `x ${h.reps}` : ''}</p>
                 </div>
               </Link>
             ))}
@@ -79,15 +134,37 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section>
-        <div className="flex items-center justify-between mb-2 px-1">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white/60">Muscle Progress</h2>
-          <Link to="/body" className="text-xs text-accent font-semibold">View all →</Link>
+      <section className="relative h-48 rounded-2xl overflow-hidden border border-white/10 bg-bg-800">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,0,51,0.25),transparent_35%),linear-gradient(135deg,#2e2e2e,#0a0a0a)]" />
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute left-8 top-8 w-24 h-24 border border-accent/50 rotate-12" />
+          <div className="absolute right-8 bottom-8 w-32 h-2 bg-accent/60 blur-sm" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {topMuscles.map(m => <MuscleCard key={m.name} muscle={m} />)}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-900 via-bg-900/40 to-transparent" />
+        <div className="absolute bottom-5 left-6">
+          <p className="metric-label text-accent mb-1">Pro advice</p>
+          <h3 className="text-xl font-extrabold">Consistency &gt; Intensity.</h3>
         </div>
       </section>
+
+      <Link
+        to="/workouts"
+        className="fixed bottom-24 right-[calc(50%-184px)] w-14 h-14 bg-accent text-white rounded-full shadow-[0_0_22px_rgba(255,0,51,0.45)] flex items-center justify-center z-40 active:scale-90 transition"
+      >
+        <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
+      </Link>
+
+      <div className="sr-only">Total sets logged: {totalSets}</div>
+    </div>
+  )
+}
+
+function MetricCard({ label, value, sub, hot }) {
+  return (
+    <div className={`glass-card p-4 ${hot ? 'border-l-2 border-accent' : ''}`}>
+      <p className="metric-label">{label}</p>
+      <p className="text-3xl font-extrabold tracking-tight mt-1 truncate">{value}</p>
+      <p className="text-xs text-white/40 mt-1 truncate">{sub}</p>
     </div>
   )
 }

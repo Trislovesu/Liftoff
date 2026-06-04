@@ -61,6 +61,7 @@ D:\Liftit\
     │   └── AppContext.jsx          THE store — useReducer + actions. SINGLE seam between UI and Supabase.
     ├── components/
     │   ├── Avatar.jsx              universal avatar: URL → emoji → initial fallback
+    │   ├── AppTopBar.jsx           fixed Stitch-style top brand bar with avatar + notification icon
     │   ├── BodyHeaderStats.jsx     compact top bar on Body page (avatar, level, 🏋️ workouts, ⚡ weekly XP)
     │   ├── BodygraphTabs.jsx       only [Bodygraph, Gallery] — Leagues/Analytics removed
     │   ├── BodyFigure.jsx          DELETED (replaced by FrontBackBodyMap using image)
@@ -74,14 +75,14 @@ D:\Liftit\
     │   ├── MuscleCard.jsx          dashboard muscle preview
     │   ├── StatCard.jsx            dashboard stat tiles
     │   ├── XPProgressBar.jsx       progress bar primitive
-    │   ├── BottomNav.jsx           5-tab nav: Home, Workouts, Body, Ranks, Profile
+    │   ├── BottomNav.jsx           Stitch-style fixed glass dock nav: Home, Log, Body, Ranks, Profile
     │   └── Header.jsx              page header with back button
     └── pages/
-        ├── Login.jsx               username + PIN, post-signup avatar prompt
-        ├── Dashboard.jsx           profile hero, rank card, stats, recent (clickable to /history/:id), top muscles
+        ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
+        ├── Dashboard.jsx           Stitch red-edition dashboard: welcome, line chart, metric grid, recent lifts, advice panel, floating start action
         ├── Workouts.jsx            list of saved workouts
         ├── WorkoutBuilder.jsx      create/edit. Library picker sorts by selected target muscles. NO custom-exercise button.
-        ├── WorkoutLogger.jsx       log sets. Shows last-time nudges. Sanity-checks before finish. FinishModal asks for pump pic.
+        ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
         ├── WorkoutHistoryDetail.jsx  /history/:id — sets/reps/weight breakdown, XP, completion + pump bonuses
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
         ├── Gallery.jsx             pump pic feed, upload with EXIF check
@@ -181,7 +182,8 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 ## Visual design conventions (current)
 
 - **Buttons:** Kinetic Dark Redux — primary is solid red with subtle red glow; ghost is charcoal with red stroke. Defined in `src/index.css` under `.btn-primary` / `.btn-ghost`.
-- **Cards:** `.card` uses charcoal tonal layering, subtle border, backdrop blur, and a minimal inset highlight. Prefer `.card` over raw `bg-bg-800` divs for content containers.
+- **Cards:** `.card` is the general charcoal card. `.glass-card` and `.glass-input` are the Stitch screenshot primitives for the redesigned screens.
+- **Navigation:** Authed pages use fixed `AppTopBar` plus the fixed glass `BottomNav`. Page content starts below the top bar through `App.jsx` padding.
 - **Body overlays:** rest = invisible/dim outline only; selected = soft tier-color glow + white stroke. Tier pulse/fire only when selected. **Don't** restore always-on glow.
 
 ## Common gotchas
@@ -232,6 +234,7 @@ git push
 | `lib/exifDate.js` | `readPhotoTakenAt` + `checkPhotoIsRecent` (uses funny rejections). |
 | `lib/funnyRejects.js` | `funnyOldPhotoReject(ageMs)`, `randomCompliment()`, `lastTimeNudge(weight, reps)`. |
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
+| `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
@@ -241,6 +244,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Stitch screenshot redesign pass:** Login, Dashboard, WorkoutLogger, AppTopBar, BottomNav, and core screenshot primitives now mirror the red-edition Stitch screens structurally: LIFTIT hero auth, fixed top brand bar, glass metric cards, dashboard line chart, recent lift rows, floating start button, active-session timer/completion header, dense set tables, and fixed finish CTA.
 - **Stitch red theme applied:** app styling updated to Stitch's latest red edition, `Kinetic Dark Redux` (`#ff0033` accent, charcoal surfaces, Sora/Geist typography). Shared primitives (`.card`, `.btn-primary`, `.btn-ghost`, `.input`, progress bars, stat cards, bottom nav) and page-level leftovers across login, dashboard/stats overview, gallery, leaderboard, builder modal, and profile modal now inherit the red edition.
 - **Overlays fully redrawn:** Tristan used the editor's Draw Mode to retrace every muscle from scratch. New layout has 30 paths total (4 Glutes paths instead of 2, polyline-style shapes instead of bezier curves for most zones). Some muscles missing from the new pass (hamstrings on back, rhomboids) — if needed, redraw via the editor again.
 - **Editor v2 (FrontBackBodyMap):** added Draw mode (click points to define a polygon), Delete selected, muscle-relabel dropdown, in-SVG label tag, unified `items` state model in place of separate transforms array. `EDIT_MODE = true` flag at top of the file.

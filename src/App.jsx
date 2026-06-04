@@ -11,13 +11,15 @@ import ExerciseAbout from './pages/ExerciseAbout.jsx'
 import Profile from './pages/Profile.jsx'
 import WorkoutHistoryDetail from './pages/WorkoutHistoryDetail.jsx'
 import Login from './pages/Login.jsx'
+import AppTopBar from './components/AppTopBar.jsx'
 
 export default function App() {
   const { state } = useApp()
 
   return (
     <div className="min-h-screen bg-bg-900 bg-hero-grad">
-      <div className="max-w-md mx-auto px-4 pt-6 pb-28">
+      {state.status === 'authed' && <AppTopBar user={state.user} />}
+      <div className={`max-w-md mx-auto px-5 pb-28 ${state.status === 'authed' ? 'pt-20' : 'pt-0'}`}>
         {state.status === 'loading' && (
           <div className="min-h-[60vh] flex items-center justify-center text-white/40 text-sm">
             Loading…

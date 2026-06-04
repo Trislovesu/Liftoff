@@ -1,32 +1,32 @@
 import { NavLink } from 'react-router-dom'
 
 const items = [
-  { to: '/',            label: 'Home',     icon: '🏠' },
-  { to: '/workouts',    label: 'Workouts', icon: '🏋️' },
-  { to: '/body',        label: 'Body',     icon: '💪' },
-  { to: '/leaderboard', label: 'Ranks',    icon: '🏆' },
-  { to: '/profile',     label: 'Profile',  icon: '👤' }
+  { to: '/', label: 'Home', icon: 'dashboard' },
+  { to: '/workouts', label: 'Log', icon: 'add_circle' },
+  { to: '/body', label: 'Body', icon: 'fitness_center' },
+  { to: '/leaderboard', label: 'Ranks', icon: 'analytics' },
+  { to: '/profile', label: 'Profile', icon: 'person' }
 ]
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-3 pt-2 pointer-events-none">
-      <div className="max-w-md mx-auto pointer-events-auto bg-bg-800/95 backdrop-blur-md border border-bg-700 rounded-lg shadow-card flex items-center justify-around p-1.5">
+    <nav className="fixed bottom-0 inset-x-0 z-40 pointer-events-none">
+      <div className="max-w-md mx-auto h-16 pointer-events-auto bg-bg-950/85 backdrop-blur-2xl border-t border-white/10 rounded-t-xl shadow-[0_-4px_20px_rgba(255,0,51,0.10)] flex items-center justify-around px-4">
         {items.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-0.5 py-2 rounded text-[10px] font-semibold transition-all ${
+              `flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold transition-all active:scale-90 ${
                 isActive
-                  ? 'bg-accent/10 text-accent shadow-glow'
-                  : 'text-white/50 hover:text-white'
+                  ? 'text-accent drop-shadow-[0_0_8px_rgba(255,0,51,0.55)]'
+                  : 'text-white/45 hover:text-white'
               }`
             }
           >
-            <span className="text-lg leading-none">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="material-symbols-outlined text-[22px] leading-none">{item.icon}</span>
+            <span className="uppercase tracking-[0.12em]">{item.label}</span>
           </NavLink>
         ))}
       </div>

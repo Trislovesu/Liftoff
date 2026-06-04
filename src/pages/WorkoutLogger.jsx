@@ -24,7 +24,7 @@ export default function WorkoutLogger() {
   const workout = state.workouts.find(w => w.id === id)
   const [logged, setLogged] = useState(() => workout ? buildInitial(workout) : [])
   const [elapsed, setElapsed] = useState(0)
-  const [finished, setFinished] = useState(null) // { xp, pumpPicAdded }
+  const [finished, setFinished] = useState(null)
 
   useEffect(() => {
     const start = Date.now()
@@ -39,10 +39,14 @@ export default function WorkoutLogger() {
     return xp + WORKOUT_COMPLETION_BONUS
   }, [logged])
 
+  const totalSets = logged.reduce((sum, ex) => sum + ex.sets.length, 0)
+  const doneSets = logged.reduce((sum, ex) => sum + ex.sets.filter(s => s.completed).length, 0)
+  const completion = totalSets ? doneSets / totalSets : 0
+
   if (!workout) {
     return (
       <div><Header title="Workout" back="/workouts" />
-        <div className="card p-6 text-center text-white/50">Workout not found.</div></div>
+        <div className="glass-card p-6 text-center text-white/50">Workout not found.</div></div>
     )
   }
 
@@ -52,6 +56,7 @@ export default function WorkoutLogger() {
       return { ...ex, sets: ex.sets.map((s, j) => j === setIdx ? { ...s, ...patch } : s) }
     }))
   }
+
   function addSet(exIdx) {
     setLogged(ls => ls.map((ex, i) => {
       if (i !== exIdx) return ex
@@ -59,6 +64,7 @@ export default function WorkoutLogger() {
       return { ...ex, sets: [...ex.sets, { reps: last.reps, weight: last.weight, completed: false }] }
     }))
   }
+
   function removeSet(exIdx, setIdx) {
     setLogged(ls => ls.map((ex, i) => {
       if (i !== exIdx) return ex
@@ -75,7 +81,6 @@ export default function WorkoutLogger() {
     if (warnings.length > 0) {
       if (!confirm('Heads up:\n\n' + [...new Set(warnings)].slice(0, 3).join('\n') + '\n\nFinish anyway?')) return
     }
-    // Show finish modal (asks about pump pic)
     setFinished({ xp: liveXP, pumpPicAdded: false })
   }
 
@@ -88,81 +93,114 @@ export default function WorkoutLogger() {
     })
   }
 
-  const mins = Math.floor(elapsed / 60)
+  const mins = String(Math.floor(elapsed / 60)).padStart(2, '0')
   const secs = String(elapsed % 60).padStart(2, '0')
 
   return (
-    <div>
-      <Header title={workout.name} back="/workouts" right={
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Live XP</div>
-          <div className="text-lg font-extrabold text-xp leading-none">+{liveXP}</div>
+    <div className="pb-24">
+      <section className="mb-8">
+        <div className="flex justify-between items-end mb-3">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-extrabold text-accent uppercase tracking-tight truncate">{workout.name}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <span className="metric-label">Active session</span>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,0,51,0.35)]">{mins}:{secs}</div>
+            <span className="metric-label">Elapsed</span>
+          </div>
         </div>
-      } />
-
-      <div className="card-grad p-3 mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span>⏱</span><span>{mins}:{secs}</span>
+        <div className="h-1.5 w-full bg-bg-700/40 rounded-full overflow-hidden">
+          <div className="h-full bg-accent shadow-[0_0_10px_rgba(255,0,51,0.6)]" style={{ width: `${Math.max(8, completion * 100)}%` }} />
         </div>
-        <div className="text-xs text-white/50">Completion bonus: +{WORKOUT_COMPLETION_BONUS}</div>
-      </div>
+        <div className="flex justify-between mt-2 metric-label">
+          <span>{doneSets}/{totalSets} sets</span>
+          <span>+{liveXP} XP</span>
+        </div>
+      </section>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {logged.map((ex, i) => {
           const pbKey = ex.libraryId || ex.name
           const last = state.user.lastSessions?.[pbKey]
           const nudge = last ? lastTimeNudge(last.weight, last.reps) : null
           return (
-            <div key={ex.id} className="card p-3">
-              <div className="flex items-center justify-between mb-2">
+            <div key={ex.id} className="glass-card p-4 relative overflow-hidden hover:border-accent/40 transition">
+              <div className="flex justify-between items-start mb-4">
                 <div className="min-w-0">
-                  <div className="font-bold truncate">{ex.name}</div>
-                  <div className="text-xs text-white/40">{ex.primaryMuscle}</div>
+                  <h2 className="text-2xl font-extrabold truncate">{ex.name}</h2>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <span className="px-2 py-0.5 bg-bg-600 rounded metric-label">{ex.primaryMuscle}</span>
+                    {ex.secondaryMuscles?.slice(0, 1).map(m => <span key={m} className="px-2 py-0.5 bg-bg-600 rounded metric-label">{m}</span>)}
+                  </div>
                 </div>
-                {ex.libraryId && <Link to={`/exercise/${ex.libraryId}`} className="btn-ghost text-xs">About</Link>}
+                {ex.libraryId && (
+                  <Link to={`/exercise/${ex.libraryId}`} className="text-white/45 hover:text-accent transition">
+                    <span className="material-symbols-outlined">more_vert</span>
+                  </Link>
+                )}
               </div>
 
               {nudge && (
-                <div className="text-[11px] text-white/40 italic mb-2 px-1">
-                  💡 {nudge} — try a touch more.
+                <div className="text-[11px] text-white/45 mb-3 border border-white/10 bg-bg-950/40 rounded-lg px-3 py-2">
+                  {nudge} Try a touch more.
                 </div>
               )}
 
-              <div className="flex gap-2 text-[11px] uppercase tracking-wider text-white/40 font-semibold mb-1 px-1">
-                <div className="w-6 shrink-0">Set</div>
-                <div className="flex-1">Weight</div>
-                <div className="flex-1">Reps</div>
-                <div className="w-8 text-center shrink-0">✓</div>
-                <div className="w-5 shrink-0"></div>
+              <div className="grid grid-cols-12 gap-2 mb-2 metric-label px-2">
+                <div className="col-span-2">Set</div>
+                <div className="col-span-4">Lbs</div>
+                <div className="col-span-4">Reps</div>
+                <div className="col-span-2 text-right">Done</div>
               </div>
 
-              <div className="space-y-1.5">
-                {ex.sets.map((s, j) => (
-                  <div key={j} className={`flex gap-2 items-center rounded-xl px-1 py-1 ${s.completed ? 'bg-xp/10' : ''}`}>
-                    <div className="w-6 shrink-0 text-center font-bold text-white/60">{j + 1}</div>
-                    <input type="number" min="0" value={s.weight}
-                      onChange={e => updateSet(i, j, { weight: Number(e.target.value) })}
-                      className="input py-1.5 flex-1 min-w-0" />
-                    <input type="number" min="0" value={s.reps}
-                      onChange={e => updateSet(i, j, { reps: Number(e.target.value) })}
-                      className="input py-1.5 flex-1 min-w-0" />
-                    <button onClick={() => updateSet(i, j, { completed: !s.completed })}
-                      className={`w-8 h-8 shrink-0 rounded-lg border ${s.completed ? 'bg-xp text-bg-900 border-xp' : 'border-white/15 text-white/40'}`}>✓</button>
-                    <button onClick={() => removeSet(i, j)}
-                      className="w-5 shrink-0 text-white/30 hover:text-danger text-sm text-center">✕</button>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {ex.sets.map((s, j) => {
+                  const active = !s.completed && ex.sets.slice(0, j).every(prev => prev.completed)
+                  return (
+                    <div key={j} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-lg border transition-all ${
+                      s.completed ? 'bg-bg-950/50 border-transparent' : active ? 'bg-bg-700/40 border-accent/30 kinetic-glow' : 'bg-bg-950/40 border-transparent'
+                    }`}>
+                      <div className={`col-span-2 font-semibold ${active ? 'text-accent' : 'text-white/70'}`}>{j + 1}</div>
+                      <input type="number" min="0" value={s.weight}
+                        onChange={e => updateSet(i, j, { weight: Number(e.target.value) })}
+                        className="col-span-4 w-full bg-bg-950 border-b border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1 rounded" />
+                      <input type="number" min="0" value={s.reps}
+                        onChange={e => updateSet(i, j, { reps: Number(e.target.value) })}
+                        className="col-span-4 w-full bg-bg-950 border-b border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1 rounded" />
+                      <div className="col-span-2 flex justify-end">
+                        <button onClick={() => updateSet(i, j, { completed: !s.completed })}
+                          className={`w-8 h-8 rounded flex items-center justify-center border transition ${
+                            s.completed ? 'bg-accent border-accent text-white shadow-[0_0_10px_rgba(255,0,51,0.35)]' : 'border-white/20 text-white/45 hover:border-accent hover:text-accent'
+                          }`}>
+                          <span className="material-symbols-outlined text-[18px]">check</span>
+                        </button>
+                      </div>
+                      {ex.sets.length > 1 && (
+                        <button onClick={() => removeSet(i, j)} className="col-span-12 text-left metric-label text-white/25 hover:text-danger px-1">Remove set</button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-              <button onClick={() => addSet(i)} className="btn-ghost w-full mt-2 text-xs">＋ Add set</button>
+
+              <button onClick={() => addSet(i)} className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-lg metric-label hover:bg-bg-700/50 hover:text-accent hover:border-accent/50 transition flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-sm">add</span> Add set
+              </button>
             </div>
           )
         })}
       </div>
 
-      <div className="mt-5">
-        <button onClick={attemptFinish} className="btn-primary w-full text-base py-3 shadow-glow">
-          🎯 Finish Workout (+{liveXP} XP)
-        </button>
+      <div className="fixed bottom-20 left-0 w-full px-5 z-40">
+        <div className="max-w-md mx-auto">
+          <button onClick={attemptFinish} className="w-full h-14 bg-accent text-white font-extrabold rounded-xl shadow-[0_0_30px_rgba(255,0,51,0.4)] active:scale-95 transition flex items-center justify-center gap-3">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>task_alt</span>
+            Finish Workout
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -206,27 +244,28 @@ function FinishModal({ baseXP, onFinish }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
       <motion.div initial={{ y: 30, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-        className="card-grad p-6 text-center w-full max-w-sm relative overflow-hidden">
-        <div className="text-5xl mb-2">🏆</div>
-        <div className="text-xl font-extrabold mb-1">Workout Complete!</div>
+        className="glass-card p-6 text-center w-full max-w-sm relative overflow-hidden">
+        <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 mx-auto mb-3 flex items-center justify-center">
+          <span className="material-symbols-outlined text-accent text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>trophy</span>
+        </div>
+        <div className="text-xl font-extrabold mb-1">Workout Complete</div>
         <div className="text-white/60 text-sm mb-3">You earned</div>
-        <div className="text-5xl font-extrabold text-xp mb-1">+{baseXP + (pumpAdded ? PUMP_PIC_BONUS : 0)}</div>
-        <div className="text-xs text-white/40 mb-5">XP added to your profile</div>
+        <div className="text-5xl font-extrabold text-accent mb-1">+{baseXP + (pumpAdded ? PUMP_PIC_BONUS : 0)}</div>
+        <div className="metric-label mb-5">XP added to your profile</div>
 
         {!pumpAdded ? (
           <>
-            <div className="text-sm text-white/70 mb-2 font-bold">📸 Take a pump pic for +{PUMP_PIC_BONUS} XP</div>
-            <button onClick={() => fileRef.current?.click()} disabled={busy}
-              className="btn-primary w-full mb-2">
-              {busy ? 'Checking…' : 'Take/Upload Photo'}
+            <div className="text-sm text-white/70 mb-2 font-bold">Take a pump pic for +{PUMP_PIC_BONUS} XP</div>
+            <button onClick={() => fileRef.current?.click()} disabled={busy} className="btn-primary w-full mb-2">
+              {busy ? 'Checking...' : 'Take/Upload Photo'}
             </button>
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickFile} />
-            {msg && <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-xl px-3 py-2 mb-2">{msg}</div>}
+            {msg && <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 mb-2">{msg}</div>}
             <button onClick={() => onFinish(false)} className="btn-ghost w-full text-sm">Skip</button>
           </>
         ) : (
           <>
-            <div className="text-sm text-xp font-bold mb-3">✓ Pump pic saved to gallery</div>
+            <div className="text-sm text-accent font-bold mb-3">Pump pic saved to gallery</div>
             <button onClick={() => onFinish(true)} className="btn-primary w-full">Back to Dashboard</button>
           </>
         )}
