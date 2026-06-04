@@ -64,14 +64,18 @@ function updateStreak(user) {
   return { ...user, streak: diff === 1 ? user.streak + 1 : 1, lastWorkoutDate: today }
 }
 
+function isDiannaProfile(username) {
+  return username?.toLowerCase() === 'dianna'
+}
+
 function initialState() {
-  return { status: 'loading', session: null, user: null, workouts: [], history: [] }
+  return { status: 'loading', session: null, user: null, workouts: [], history: [], intro: null }
 }
 
 function reducer(state, action) {
   switch (action.type) {
     case 'BOOT_UNAUTHED':
-      return { ...state, status: 'unauthed', session: null, user: null, workouts: [], history: [] }
+      return { ...state, status: 'unauthed', session: null, user: null, workouts: [], history: [], intro: null }
 
     case 'AUTH_SUCCESS': {
       const local = loadLocalFor(action.user.username) || { workouts: sampleWorkouts(), history: [] }
@@ -79,11 +83,12 @@ function reducer(state, action) {
       // Backfill totalWorkouts from local history for older users
       if (!user.totalWorkouts && local.history?.length) user.totalWorkouts = local.history.length
       if (action.isNew) user.needsOnboarding = true
-      return { status: 'authed', session: action.session, user, workouts: local.workouts, history: local.history }
+      const intro = action.justLoggedIn && isDiannaProfile(user.username) ? 'dianna' : null
+      return { status: 'authed', session: action.session, user, workouts: local.workouts, history: local.history, intro }
     }
 
     case 'SIGN_OUT':
-      return { ...state, status: 'unauthed', session: null, user: null, workouts: [], history: [] }
+      return { ...state, status: 'unauthed', session: null, user: null, workouts: [], history: [], intro: null }
 
     case 'SAVE_WORKOUT': {
       const w = action.workout
@@ -172,6 +177,9 @@ function reducer(state, action) {
     case 'PATCH_USER':
       return { ...state, user: { ...state.user, ...action.patch } }
 
+    case 'DISMISS_INTRO':
+      return { ...state, intro: null }
+
     default: return state
   }
 }
@@ -234,7 +242,7 @@ export function AppProvider({ children }) {
     const { user, pin_hash } = await rpcLogin(username, pin)
     const session = { username: user.username, pin_hash }
     saveSession(session)
-    dispatch({ type: 'AUTH_SUCCESS', session, user: rpcUserToClient(user) })
+    dispatch({ type: 'AUTH_SUCCESS', session, user: rpcUserToClient(user), justLoggedIn: true })
   }, [])
 
   const signOut = useCallback(() => { saveSession(null); dispatch({ type: 'SIGN_OUT' }) }, [])

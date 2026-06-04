@@ -234,8 +234,8 @@ git push
 
 | File | Purpose |
 |---|---|
-| `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard. |
-| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
+| `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard; includes Dianna-only login intro before entering the app. |
+| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
 | `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status and leaderboard realtime subscription/broadcast helpers, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
@@ -258,8 +258,9 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Dianna custom profile:** created Supabase user `dianna` with PIN `6767` and heart avatar. Logging in as Dianna triggers a one-time smooth themed intro with a heart and the text `hello my beatiful helper`, then carries her into the app normally. Intro is login-only, not shown on refresh/boot, and does not affect other users.
 - **Polish/onboarding/fatigue pass:** Weekly Progress now charts weekly lifted weight volume instead of XP. Added global transition polish and route fade-ins. New signups go through animated avatar/emoji selection followed by Gym/Home setup (`gym_type` in Supabase). Leaderboard refreshes live through Realtime broadcast after cloud sync. Dashboard `Muscle Rankings` became `Muscle Fatigue`, calculated from recent logged muscle work with a 42-72 hour recovery decay and tap-for-estimate detail sheet. Bottom Body tab is disabled/gray for now.
-- **Gym update alert:** admin `Update message` no longer appears inside the Z status dropdown. When a new gym status message is pushed, users see a dismissible themed alert on the main screen; the Z button still shows the small red unread indicator.
+- **Gym update alert:** admin `Update message` no longer appears inside the Z status dropdown. When a new gym status message is pushed, users see a dismissible themed alert on the main screen; message seen-state is separate from opening the Z panel, and incoming messages close the panel so the alert is visible. The Z button still shows the small red unread indicator.
 - **Realtime gym status + leaner dashboard:** gym status now subscribes to Supabase Realtime and admin saves broadcast directly to connected users without refresh; subscription/broadcast failures warn in the browser console. Dashboard welcome keeps only the small welcome label; the large rotating motivation sentence was removed. Level detail sheet keeps only `Next milestone` and `Milestone XP needed` boxes; milestones are every 50 levels up to 500.
 - **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and milestone XP. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
 - **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.

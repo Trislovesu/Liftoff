@@ -6,6 +6,7 @@ import { broadcastGymStatus, rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetG
 import { DEFAULT_GYM_STATUS, GYM_LOCATIONS, normalizeGymStatus, STATUS_OPTIONS, statusMeta } from '../lib/gymStatus.js'
 
 const SEEN_STATUS_KEY = 'liftit.gymStatusSeen.v1'
+const SEEN_MESSAGE_KEY = 'liftit.gymStatusMessageSeen.v1'
 
 function isAdminUser(user) {
   return user?.username?.toLowerCase() === 'tris'
@@ -26,10 +27,15 @@ export default function AppTopBar({ user }) {
     const next = normalizeGymStatus(nextStatus)
     setStatus(next)
     setDraft(next)
-    const seen = localStorage.getItem(SEEN_STATUS_KEY)
-    if (announce && next.updated_at && next.updated_at !== seen) {
+    const seenStatus = localStorage.getItem(SEEN_STATUS_KEY)
+    const seenMessage = localStorage.getItem(SEEN_MESSAGE_KEY)
+    const message = next.message?.trim()
+    if (announce && next.updated_at && next.updated_at !== seenStatus) {
       setNotice(true)
-      if (next.message?.trim()) setMessageAlert(next)
+    }
+    if (announce && next.updated_at && next.updated_at !== seenMessage && message) {
+      setMessageAlert({ ...next, message })
+      setOpen(false)
     }
   }
 
@@ -80,6 +86,7 @@ export default function AppTopBar({ user }) {
       setDraft(next)
       setNotice(false)
       if (next.updated_at) localStorage.setItem(SEEN_STATUS_KEY, next.updated_at)
+      if (next.updated_at) localStorage.setItem(SEEN_MESSAGE_KEY, next.updated_at)
       await broadcastGymStatus(next)
     } catch (e) {
       alert(e.message || 'Could not update gym status')
@@ -161,9 +168,8 @@ export default function AppTopBar({ user }) {
         <StatusMessageAlert
           status={messageAlert}
           onClose={() => {
-            if (messageAlert.updated_at) localStorage.setItem(SEEN_STATUS_KEY, messageAlert.updated_at)
+            if (messageAlert.updated_at) localStorage.setItem(SEEN_MESSAGE_KEY, messageAlert.updated_at)
             setMessageAlert(null)
-            setNotice(false)
           }}
         />
       )}
