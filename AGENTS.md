@@ -81,7 +81,7 @@ D:\Liftit\
     │   └── Header.jsx              page header with back button
     └── pages/
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
-        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome, daily motivation, line chart, metric grid with Level/Rank detail sheets, muscle rankings, recent lifts, pump-pic advice panel, floating start action
+        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome label, line chart, metric grid with Level/Rank detail sheets, muscle rankings, recent lifts, pump-pic advice panel, floating start action
         ├── Workouts.jsx            list of saved workouts
         ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
         ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
@@ -114,7 +114,7 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 
 `gym_status` table is a single-row global status object for Highway Plaza / SunPlaza:
 `{ id: 1, locations: [{ key, name, detail, status }], message, updated_by, updated_at }`.
-Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash. The row is public-read and added to `supabase_realtime` so connected users receive status changes immediately without refresh.
+Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash. The row is public-read and added to `supabase_realtime`, and admin saves also send a direct Realtime broadcast so connected users receive status changes immediately without refresh.
 
 ## XP system (v2 — current)
 
@@ -234,7 +234,7 @@ git push
 |---|---|
 | `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard. |
 | `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
-| `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status realtime subscription, and `uploadImage`. |
+| `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status realtime subscription/broadcast, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
 | `lib/xp.js` | `RANKS`, `rankFor`, `rankIndex`, `levelFromXP`, `muscleProgress`, `applyMuscleXP`, `xpForSet`, `WORKOUT_COMPLETION_BONUS`, `PUMP_PIC_BONUS`, `sanityCheckSet`. |
@@ -255,7 +255,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
-- **Realtime gym status + leaner Level sheet:** gym status now subscribes to Supabase Realtime so admin changes push to connected users without refresh. Level detail sheet now keeps only `Next milestone` and `Milestone XP needed` boxes; milestones are every 50 levels up to 500.
+- **Realtime gym status + leaner dashboard:** gym status now subscribes to Supabase Realtime and admin saves broadcast directly to connected users without refresh. Dashboard welcome keeps only the small welcome label; the large rotating motivation sentence was removed. Level detail sheet keeps only `Next milestone` and `Milestone XP needed` boxes; milestones are every 50 levels up to 500.
 - **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and milestone XP. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
 - **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.
 - **Cleanup + gym status/admin:** log cards and inputs made rounder; dashboard welcome now uses username + daily motivation; top-right bell replaced by glowing `Z` gym status popover for Zion Fitness House / Highway Plaza and SunPlaza; `tris` gets an admin-only panel to change status and view accounts; profile history is collapsed by default; dashboard advice card uses latest pump pic when available; schema adds `gym_status` + admin RPCs.

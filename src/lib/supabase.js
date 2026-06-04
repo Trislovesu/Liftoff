@@ -68,9 +68,13 @@ export async function rpcGetGymStatus() {
   return data
 }
 
+const GYM_STATUS_CHANNEL = 'gym-status-updates'
+let gymStatusChannel = null
+
 export function subscribeToGymStatus(onChange) {
   const channel = supabase
-    .channel('gym-status-updates')
+    .channel(GYM_STATUS_CHANNEL)
+    .on('broadcast', { event: 'gym_status_updated' }, payload => onChange(payload.payload))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'gym_status', filter: 'id=eq.1' },
@@ -78,7 +82,20 @@ export function subscribeToGymStatus(onChange) {
     )
     .subscribe()
 
-  return () => { supabase.removeChannel(channel) }
+  gymStatusChannel = channel
+  return () => {
+    if (gymStatusChannel === channel) gymStatusChannel = null
+    supabase.removeChannel(channel)
+  }
+}
+
+export async function broadcastGymStatus(status) {
+  if (!gymStatusChannel) return
+  await gymStatusChannel.send({
+    type: 'broadcast',
+    event: 'gym_status_updated',
+    payload: status
+  })
 }
 
 export async function rpcAdminUpdateGymStatus(username, pin_hash, status) {

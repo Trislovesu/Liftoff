@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar.jsx'
 import { useApp } from '../store/AppContext.jsx'
-import { rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetGymStatus, subscribeToGymStatus } from '../lib/supabase.js'
+import { broadcastGymStatus, rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetGymStatus, subscribeToGymStatus } from '../lib/supabase.js'
 import { DEFAULT_GYM_STATUS, GYM_LOCATIONS, normalizeGymStatus, STATUS_OPTIONS, statusMeta } from '../lib/gymStatus.js'
 
 const SEEN_STATUS_KEY = 'liftit.gymStatusSeen.v1'
@@ -76,6 +76,7 @@ export default function AppTopBar({ user }) {
       setDraft(next)
       setNotice(false)
       if (next.updated_at) localStorage.setItem(SEEN_STATUS_KEY, next.updated_at)
+      await broadcastGymStatus(next)
     } catch (e) {
       alert(e.message || 'Could not update gym status')
     } finally {

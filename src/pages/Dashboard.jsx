@@ -44,18 +44,6 @@ function recentSummary(history) {
   })
 }
 
-function dailyMotivation(user, history) {
-  const day = Math.floor(Date.now() / 86400000)
-  const recent = history[0]
-  const options = [
-    `Level ${levelFromXP(user.totalXP).level} is looking sharp. Stack another clean session.`,
-    user.weeklyXP > 0 ? `${user.weeklyXP.toLocaleString()} XP this week. Keep the pressure on.` : 'Fresh week. First lift sets the tone.',
-    recent ? `Last session hit +${recent.xp} XP. Today, beat one number.` : 'Start simple. Log the first set and momentum follows.',
-    (user.totalWorkouts || 0) > 0 ? `${user.totalWorkouts} workouts logged. Build the next rep.` : 'Your first logged workout is waiting.'
-  ]
-  return options[day % options.length]
-}
-
 function muscleRankings(user) {
   return [...user.muscles]
     .sort((a, b) => (b.level * 1000 + b.xp) - (a.level * 1000 + a.xp))
@@ -89,7 +77,6 @@ export default function Dashboard() {
   const chartPoints = weeklyChartPoints(history)
   const totalSets = history.reduce((sum, h) => sum + h.exercises.reduce((a, ex) => a + (ex.sets?.length || 0), 0), 0)
   const weeklyGain = user.weeklyXP > 0 ? '+12%' : '0%'
-  const motivation = useMemo(() => dailyMotivation(user, history), [user, history])
   const rankings = useMemo(() => muscleRankings(user), [user])
   const recommended = rankings.find(m => m.fatigue < 60)?.name || rankings[0]?.name || 'Chest'
 
@@ -105,7 +92,6 @@ export default function Dashboard() {
     <div className="space-y-8">
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <p className="metric-label mb-1">Welcome back, {user.username}</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">{motivation}</h1>
       </motion.section>
 
       <section className="glass-card p-6 relative overflow-hidden">
