@@ -68,6 +68,19 @@ export async function rpcGetGymStatus() {
   return data
 }
 
+export function subscribeToGymStatus(onChange) {
+  const channel = supabase
+    .channel('gym-status-updates')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'gym_status', filter: 'id=eq.1' },
+      payload => onChange(payload.new)
+    )
+    .subscribe()
+
+  return () => { supabase.removeChannel(channel) }
+}
+
 export async function rpcAdminUpdateGymStatus(username, pin_hash, status) {
   const { data, error } = await supabase.rpc('app_admin_update_gym_status', {
     p_username: username,

@@ -55,6 +55,19 @@ alter table public.users      enable row level security;
 alter table public.pump_photos enable row level security;
 alter table public.gym_status  enable row level security;
 
+grant select on public.gym_status to anon, authenticated;
+drop policy if exists "gym-status-read" on public.gym_status;
+create policy "gym-status-read" on public.gym_status
+  for select to anon, authenticated using (id = 1);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.gym_status;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
 -- ---------- RPC: signup ----------
 create or replace function public.app_signup(
   p_username text, p_pin_hash text, p_initial_muscles jsonb
@@ -199,6 +212,7 @@ end; $$;
 revoke all on public.users from anon, authenticated;
 revoke all on public.pump_photos from anon, authenticated;
 revoke all on public.gym_status from anon, authenticated;
+grant select on public.gym_status to anon, authenticated;
 grant execute on function public.app_signup(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_save_state(text, text, jsonb) to anon, authenticated;

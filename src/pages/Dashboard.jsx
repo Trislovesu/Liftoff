@@ -286,11 +286,12 @@ function DetailShell({ children, onClose }) {
 
 function LevelDetailModal({ user, lvl, onClose }) {
   const maxLevel = 500
-  const currentLevelStart = totalXPForLevel(lvl.level)
   const targetXP = totalXPForLevel(maxLevel)
-  const xpTo500 = Math.max(0, targetXP - user.totalXP)
+  const nextMilestone = Math.min(maxLevel, Math.ceil((lvl.level + 1) / 50) * 50)
+  const milestoneXP = totalXPForLevel(nextMilestone)
+  const xpToMilestone = Math.max(0, milestoneXP - user.totalXP)
   const pathProgress = Math.min(1, user.totalXP / targetXP)
-  const milestones = [1, 100, 250, 500]
+  const milestones = [1, 50, 100, 250, 500]
 
   return (
     <DetailShell onClose={onClose}>
@@ -314,10 +315,8 @@ function LevelDetailModal({ user, lvl, onClose }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <MiniStat label="Next level" value={`${lvl.xpIntoLevel.toLocaleString()} / ${lvl.xpForLevel.toLocaleString()}`} />
-        <MiniStat label="XP to 500" value={xpTo500.toLocaleString()} />
-        <MiniStat label="Level start" value={currentLevelStart.toLocaleString()} />
-        <MiniStat label="Level 500 XP" value={targetXP.toLocaleString()} />
+        <MiniStat label="Next milestone" value={`Level ${nextMilestone}`} />
+        <MiniStat label="Milestone XP needed" value={xpToMilestone.toLocaleString()} />
       </div>
     </DetailShell>
   )

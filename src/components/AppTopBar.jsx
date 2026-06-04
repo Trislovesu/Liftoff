@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar.jsx'
 import { useApp } from '../store/AppContext.jsx'
-import { rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetGymStatus } from '../lib/supabase.js'
+import { rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetGymStatus, subscribeToGymStatus } from '../lib/supabase.js'
 import { DEFAULT_GYM_STATUS, GYM_LOCATIONS, normalizeGymStatus, STATUS_OPTIONS, statusMeta } from '../lib/gymStatus.js'
 
 const SEEN_STATUS_KEY = 'liftit.gymStatusSeen.v1'
@@ -21,13 +21,17 @@ export default function AppTopBar({ user }) {
   const [draft, setDraft] = useState(DEFAULT_GYM_STATUS)
   const admin = isAdminUser(user)
 
+  function applyStatus(nextStatus, { announce = false } = {}) {
+    const next = normalizeGymStatus(nextStatus)
+    setStatus(next)
+    setDraft(next)
+    const seen = localStorage.getItem(SEEN_STATUS_KEY)
+    if (announce && next.updated_at && next.updated_at !== seen) setNotice(true)
+  }
+
   async function refreshStatus({ announce = false } = {}) {
     try {
-      const next = normalizeGymStatus(await rpcGetGymStatus())
-      setStatus(next)
-      setDraft(next)
-      const seen = localStorage.getItem(SEEN_STATUS_KEY)
-      if (announce && next.updated_at && next.updated_at !== seen) setNotice(true)
+      applyStatus(await rpcGetGymStatus(), { announce })
     } catch {
       setStatus(DEFAULT_GYM_STATUS)
       setDraft(DEFAULT_GYM_STATUS)
@@ -36,8 +40,12 @@ export default function AppTopBar({ user }) {
 
   useEffect(() => {
     refreshStatus({ announce: true })
+    const unsubscribe = subscribeToGymStatus(next => applyStatus(next, { announce: true }))
     const t = setInterval(() => refreshStatus({ announce: true }), 60000)
-    return () => clearInterval(t)
+    return () => {
+      clearInterval(t)
+      unsubscribe()
+    }
   }, [])
 
   useEffect(() => {

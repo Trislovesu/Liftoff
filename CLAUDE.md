@@ -114,7 +114,7 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 
 `gym_status` table is a single-row global status object for Highway Plaza / SunPlaza:
 `{ id: 1, locations: [{ key, name, detail, status }], message, updated_by, updated_at }`.
-Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash.
+Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash. The row is public-read and added to `supabase_realtime` so connected users receive status changes immediately without refresh.
 
 ## XP system (v2 — current)
 
@@ -234,7 +234,7 @@ git push
 |---|---|
 | `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard. |
 | `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
-| `lib/supabase.js` | Client + `hashPin`, `rpcSignup`, `rpcLogin`, `rpcSaveState`, `rpcLeaderboard`, `rpcSavePumpPhoto`, `rpcGetPumpPhotos`, `uploadImage`. |
+| `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status realtime subscription, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
 | `lib/xp.js` | `RANKS`, `rankFor`, `rankIndex`, `levelFromXP`, `muscleProgress`, `applyMuscleXP`, `xpForSet`, `WORKOUT_COMPLETION_BONUS`, `PUMP_PIC_BONUS`, `sanityCheckSet`. |
@@ -255,7 +255,8 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
-- **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and XP totals. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
+- **Realtime gym status + leaner Level sheet:** gym status now subscribes to Supabase Realtime so admin changes push to connected users without refresh. Level detail sheet now keeps only `Next milestone` and `Milestone XP needed` boxes; milestones are every 50 levels up to 500.
+- **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and milestone XP. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
 - **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.
 - **Cleanup + gym status/admin:** log cards and inputs made rounder; dashboard welcome now uses username + daily motivation; top-right bell replaced by glowing `Z` gym status popover for Zion Fitness House / Highway Plaza and SunPlaza; `tris` gets an admin-only panel to change status and view accounts; profile history is collapsed by default; dashboard advice card uses latest pump pic when available; schema adds `gym_status` + admin RPCs.
 - **Stitch screenshot redesign pass:** Login, Dashboard, WorkoutLogger, AppTopBar, BottomNav, and core screenshot primitives now mirror the red-edition Stitch screens structurally: LIFTIT hero auth, fixed top brand bar, glass metric cards, dashboard line chart, recent lift rows, floating start button, active-session timer/completion header, dense set tables, and fixed finish CTA.
