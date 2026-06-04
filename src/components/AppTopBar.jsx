@@ -105,8 +105,7 @@ export default function AppTopBar({ user }) {
             <div className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] glass-card p-4 shadow-[0_18px_60px_rgba(0,0,0,0.55)]">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  <p className="metric-label text-accent">Zion Fitness Status</p>
-                  <h2 className="text-lg font-extrabold">Gym availability</h2>
+                  <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-accent">Zion Fitness Status</p>
                 </div>
                 <button onClick={() => setOpen(false)} className="text-white/40 hover:text-white">
                   <span className="material-symbols-outlined text-xl">close</span>
@@ -120,8 +119,7 @@ export default function AppTopBar({ user }) {
                     <div key={location.key} className="bg-bg-950/50 border border-white/10 rounded-2xl p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-bold">{location.name}</div>
-                          <div className="text-xs text-white/45">{location.detail}</div>
+                          <div className="text-xl font-extrabold">{location.key === 'zion' ? 'Highway Plaza' : location.name}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold uppercase tracking-wider" style={{ color: meta.color }}>{meta.label}</span>

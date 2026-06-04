@@ -1,6 +1,6 @@
 export const GYM_LOCATIONS = [
-  { key: 'zion', name: 'Zion Fitness House', detail: 'Highway Plaza' },
-  { key: 'sunplaza', name: 'SunPlaza', detail: 'SunPlaza' }
+  { key: 'zion', name: 'Highway Plaza', detail: '' },
+  { key: 'sunplaza', name: 'SunPlaza', detail: '' }
 ]
 
 export const STATUS_OPTIONS = [

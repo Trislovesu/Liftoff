@@ -44,8 +44,8 @@ insert into public.gym_status (id, locations, message)
 values (
   1,
   '[
-    {"key":"zion","name":"Zion Fitness House","detail":"Highway Plaza","status":"open"},
-    {"key":"sunplaza","name":"SunPlaza","detail":"SunPlaza","status":"open"}
+    {"key":"zion","name":"Highway Plaza","detail":"","status":"open"},
+    {"key":"sunplaza","name":"SunPlaza","detail":"","status":"open"}
   ]'::jsonb,
   'Gym status updated'
 )

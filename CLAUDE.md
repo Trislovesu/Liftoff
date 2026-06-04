@@ -56,6 +56,7 @@ D:\Liftit\
     │   ├── dates.js                week/day helpers
     │   ├── supabase.js             client + hashPin + ALL rpc* helpers + uploadImage()
     │   ├── gymStatus.js            gym location/status constants + status normalization helpers
+    │   ├── exerciseMedia.js        optional WorkoutX GIF/media cache in LocalStorage for exercise thumbnails
     │   ├── exifDate.js             minimal JPEG EXIF DateTimeOriginal reader + checkPhotoIsRecent()
     │   └── funnyRejects.js         old-photo rejection lines + random compliments + lastTimeNudge()
     ├── store/
@@ -82,7 +83,7 @@ D:\Liftit\
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
         ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome, daily motivation, line chart, metric grid, muscle rankings, recent lifts, pump-pic advice panel, floating start action
         ├── Workouts.jsx            list of saved workouts
-        ├── WorkoutBuilder.jsx      create/edit. Library picker sorts by selected target muscles. NO custom-exercise button.
+        ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
         ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
         ├── WorkoutHistoryDetail.jsx  /history/:id — sets/reps/weight breakdown, XP, completion + pump bonuses
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
@@ -111,7 +112,7 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 
 `pump_photos` table is separate: `{ id, username, image_url, taken_at, caption, xp_bonus, created_at }`.
 
-`gym_status` table is a single-row global status object for Zion Fitness House / SunPlaza:
+`gym_status` table is a single-row global status object for Highway Plaza / SunPlaza:
 `{ id: 1, locations: [{ key, name, detail, status }], message, updated_by, updated_at }`.
 Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash.
 
@@ -200,6 +201,7 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - **PWA-like camera capture** uses `<input type="file" accept="image/*" capture="environment">`. On desktop browsers this just opens a file picker.
 - **Workouts and history are PER-USER and stored in LocalStorage**, not in Supabase yet. Only the user profile + pump photos sync. To make workouts follow users across devices, lift them into Supabase later.
 - **Mock leaderboard data** (`src/data/mockLeaderboard.js`) is no longer used but kept for reference.
+- **Exercise GIF/media cache** is optional. `src/lib/exerciseMedia.js` warms `liftit.exerciseMedia.v1` from WorkoutX only when `VITE_WORKOUTX_API_KEY` exists; otherwise the builder falls back to local white-background exercise thumbnails.
 
 ## Quick commands
 
@@ -234,6 +236,7 @@ git push
 | `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
 | `lib/supabase.js` | Client + `hashPin`, `rpcSignup`, `rpcLogin`, `rpcSaveState`, `rpcLeaderboard`, `rpcSavePumpPhoto`, `rpcGetPumpPhotos`, `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
+| `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
 | `lib/xp.js` | `RANKS`, `rankFor`, `rankIndex`, `levelFromXP`, `muscleProgress`, `applyMuscleXP`, `xpForSet`, `WORKOUT_COMPLETION_BONUS`, `PUMP_PIC_BONUS`, `sanityCheckSet`. |
 | `lib/tiers.js` | `TIERS` + `tierForLevel(level)`. Color ramp matches user's strength legend. |
 | `data/muscles.js` | Muscle group names + red-edition status colors used by preview cards. |
@@ -242,6 +245,7 @@ git push
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
+| `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, and routine editor with Add from library. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
 | `supabase/schema.sql` | Schema, RPCs, storage policies. Idempotent. |
@@ -250,6 +254,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.
 - **Cleanup + gym status/admin:** log cards and inputs made rounder; dashboard welcome now uses username + daily motivation; top-right bell replaced by glowing `Z` gym status popover for Zion Fitness House / Highway Plaza and SunPlaza; `tris` gets an admin-only panel to change status and view accounts; profile history is collapsed by default; dashboard advice card uses latest pump pic when available; schema adds `gym_status` + admin RPCs.
 - **Stitch screenshot redesign pass:** Login, Dashboard, WorkoutLogger, AppTopBar, BottomNav, and core screenshot primitives now mirror the red-edition Stitch screens structurally: LIFTIT hero auth, fixed top brand bar, glass metric cards, dashboard line chart, recent lift rows, floating start button, active-session timer/completion header, dense set tables, and fixed finish CTA.
 - **Stitch red theme applied:** app styling updated to Stitch's latest red edition, `Kinetic Dark Redux` (`#ff0033` accent, charcoal surfaces, Sora/Geist typography). Shared primitives (`.card`, `.btn-primary`, `.btn-ghost`, `.input`, progress bars, stat cards, bottom nav) and page-level leftovers across login, dashboard/stats overview, gallery, leaderboard, builder modal, and profile modal now inherit the red edition.
