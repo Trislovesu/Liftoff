@@ -70,6 +70,7 @@ export async function rpcGetGymStatus() {
 
 const GYM_STATUS_CHANNEL = 'gym-status-updates'
 let gymStatusChannel = null
+let gymStatusChannelReady = false
 
 export function subscribeToGymStatus(onChange) {
   const channel = supabase
@@ -80,22 +81,32 @@ export function subscribeToGymStatus(onChange) {
       { event: '*', schema: 'public', table: 'gym_status', filter: 'id=eq.1' },
       payload => onChange(payload.new)
     )
-    .subscribe()
+    .subscribe(status => {
+      gymStatusChannelReady = status === 'SUBSCRIBED'
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Liftit] Gym status realtime subscription failed:', status)
+      }
+    })
 
   gymStatusChannel = channel
   return () => {
     if (gymStatusChannel === channel) gymStatusChannel = null
+    gymStatusChannelReady = false
     supabase.removeChannel(channel)
   }
 }
 
 export async function broadcastGymStatus(status) {
-  if (!gymStatusChannel) return
-  await gymStatusChannel.send({
+  if (!gymStatusChannel || !gymStatusChannelReady) {
+    console.warn('[Liftit] Gym status broadcast skipped: realtime channel is not subscribed yet.')
+    return
+  }
+  const result = await gymStatusChannel.send({
     type: 'broadcast',
     event: 'gym_status_updated',
     payload: status
   })
+  if (result !== 'ok') console.warn('[Liftit] Gym status broadcast failed:', result)
 }
 
 export async function rpcAdminUpdateGymStatus(username, pin_hash, status) {
