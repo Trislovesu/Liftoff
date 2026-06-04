@@ -81,7 +81,7 @@ D:\Liftit\
     │   └── Header.jsx              page header with back button
     └── pages/
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
-        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome, daily motivation, line chart, metric grid, muscle rankings, recent lifts, pump-pic advice panel, floating start action
+        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome, daily motivation, line chart, metric grid with Level/Rank detail sheets, muscle rankings, recent lifts, pump-pic advice panel, floating start action
         ├── Workouts.jsx            list of saved workouts
         ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
         ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
@@ -245,6 +245,7 @@ git push
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
+| `pages/Dashboard.jsx` | Home dashboard. Level and Rank metric cards open minimal themed detail sheets; Workouts and Weekly XP are intentionally inert. |
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, and routine editor with Add from library. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
@@ -254,6 +255,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and XP totals. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
 - **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.
 - **Cleanup + gym status/admin:** log cards and inputs made rounder; dashboard welcome now uses username + daily motivation; top-right bell replaced by glowing `Z` gym status popover for Zion Fitness House / Highway Plaza and SunPlaza; `tris` gets an admin-only panel to change status and view accounts; profile history is collapsed by default; dashboard advice card uses latest pump pic when available; schema adds `gym_status` + admin RPCs.
 - **Stitch screenshot redesign pass:** Login, Dashboard, WorkoutLogger, AppTopBar, BottomNav, and core screenshot primitives now mirror the red-edition Stitch screens structurally: LIFTIT hero auth, fixed top brand bar, glass metric cards, dashboard line chart, recent lift rows, floating start button, active-session timer/completion header, dense set tables, and fixed finish CTA.

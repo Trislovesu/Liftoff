@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
-import { levelFromXP, rankFor } from '../lib/xp.js'
+import { RANKS, levelFromXP, rankFor } from '../lib/xp.js'
 import { rpcGetPumpPhotos } from '../lib/supabase.js'
 import { tierForLevel } from '../lib/tiers.js'
 
@@ -68,10 +68,21 @@ function muscleRankings(user) {
     })
 }
 
+function xpNeededForLevel(level) {
+  return Math.round(100 * Math.pow(level, 1.4))
+}
+
+function totalXPForLevel(level) {
+  let total = 0
+  for (let i = 1; i < level; i++) total += xpNeededForLevel(i)
+  return total
+}
+
 export default function Dashboard() {
   const { state } = useApp()
   const { user, history } = state
   const [pumpPhoto, setPumpPhoto] = useState(null)
+  const [detail, setDetail] = useState(null)
   const lvl = levelFromXP(user.totalXP)
   const rank = rankFor(user.totalXP)
   const recent = recentSummary(history)
@@ -132,8 +143,8 @@ export default function Dashboard() {
       </section>
 
       <section className="grid grid-cols-2 gap-4">
-        <MetricCard label="Level" value={lvl.level} sub={`${Math.round(lvl.progress * 100)}%`} hot />
-        <MetricCard label="Rank" value={rank.current.name} sub={`${rank.xpToNext.toLocaleString()} XP`} />
+        <MetricCard label="Level" value={lvl.level} sub={`${Math.round(lvl.progress * 100)}%`} hot onClick={() => setDetail('level')} />
+        <MetricCard label="Rank" value={rank.current.name} sub={`${rank.xpToNext.toLocaleString()} XP`} onClick={() => setDetail('rank')} />
         <MetricCard label="Workouts" value={user.totalWorkouts || 0} sub="lifetime" />
         <MetricCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" hot />
       </section>
@@ -235,16 +246,133 @@ export default function Dashboard() {
       </Link>
 
       <div className="sr-only">Total sets logged: {totalSets}</div>
+
+      {detail === 'level' && <LevelDetailModal user={user} lvl={lvl} onClose={() => setDetail(null)} />}
+      {detail === 'rank' && <RankDetailModal user={user} rank={rank} onClose={() => setDetail(null)} />}
     </div>
   )
 }
 
-function MetricCard({ label, value, sub, hot }) {
+function MetricCard({ label, value, sub, hot, onClick }) {
+  const interactive = Boolean(onClick)
   return (
-    <div className={`glass-card p-4 ${hot ? 'border-l-2 border-accent' : ''}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!interactive}
+      className={`glass-card p-4 text-left ${hot ? 'border-l-2 border-accent' : ''} ${interactive ? 'cursor-pointer active:scale-[0.98] hover:border-accent/50 transition' : 'cursor-default'}`}
+    >
       <p className="metric-label">{label}</p>
       <p className="text-3xl font-extrabold tracking-tight mt-1 truncate">{value}</p>
       <p className="text-xs text-white/40 mt-1 truncate">{sub}</p>
+    </button>
+  )
+}
+
+function DetailShell({ children, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm px-4 py-6 flex items-end sm:items-center justify-center">
+      <div className="w-full max-w-md glass-card p-5 rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+        <div className="flex justify-end mb-2">
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/5 text-white/45 hover:text-white flex items-center justify-center">
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function LevelDetailModal({ user, lvl, onClose }) {
+  const maxLevel = 500
+  const currentLevelStart = totalXPForLevel(lvl.level)
+  const targetXP = totalXPForLevel(maxLevel)
+  const xpTo500 = Math.max(0, targetXP - user.totalXP)
+  const pathProgress = Math.min(1, user.totalXP / targetXP)
+  const milestones = [1, 100, 250, 500]
+
+  return (
+    <DetailShell onClose={onClose}>
+      <p className="metric-label text-accent mb-1">Level path</p>
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-4xl font-extrabold tracking-tight">Level {lvl.level}</h2>
+          <p className="text-sm text-white/45 mt-1">{user.totalXP.toLocaleString()} total XP</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-extrabold text-accent">{Math.round(lvl.progress * 100)}%</p>
+          <p className="metric-label">this level</p>
+        </div>
+      </div>
+
+      <div className="relative h-3 rounded-full bg-white/10 overflow-hidden mb-3">
+        <div className="h-full rounded-full bg-accent shadow-[0_0_18px_rgba(255,0,51,0.65)]" style={{ width: `${pathProgress * 100}%` }} />
+      </div>
+      <div className="flex justify-between text-[10px] text-white/35 font-bold uppercase tracking-wider mb-6">
+        {milestones.map(level => <span key={level}>Lv {level}</span>)}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <MiniStat label="Next level" value={`${lvl.xpIntoLevel.toLocaleString()} / ${lvl.xpForLevel.toLocaleString()}`} />
+        <MiniStat label="XP to 500" value={xpTo500.toLocaleString()} />
+        <MiniStat label="Level start" value={currentLevelStart.toLocaleString()} />
+        <MiniStat label="Level 500 XP" value={targetXP.toLocaleString()} />
+      </div>
+    </DetailShell>
+  )
+}
+
+function RankDetailModal({ user, rank, onClose }) {
+  return (
+    <DetailShell onClose={onClose}>
+      <p className="metric-label text-accent mb-1">Rank ladder</p>
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-4xl font-extrabold tracking-tight">{rank.current.name}</h2>
+          <p className="text-sm text-white/45 mt-1">{user.totalXP.toLocaleString()} total XP</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-extrabold text-accent">{rank.next ? rank.xpToNext.toLocaleString() : 'Max'}</p>
+          <p className="metric-label">{rank.next ? `to ${rank.next.name}` : 'rank'}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {RANKS.map(item => {
+          const active = item.name === rank.current.name
+          const reached = user.totalXP >= item.min
+          return (
+            <div key={item.name} className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${active ? 'bg-accent/10 border-accent/60' : 'bg-white/[0.03] border-white/10'}`}>
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ background: reached ? item.color : 'rgba(255,255,255,0.16)', boxShadow: active ? `0 0 16px ${item.glow}` : 'none' }} />
+              <div className="flex-1 min-w-0">
+                <p className={`font-extrabold ${active ? 'text-white' : 'text-white/65'}`}>{item.name}</p>
+                <p className="text-xs text-white/35">{item.min.toLocaleString()} XP</p>
+              </div>
+              {active && <span className="metric-label text-accent">Current</span>}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-5">
+        <div className="flex justify-between metric-label mb-2">
+          <span>{rank.current.name}</span>
+          <span>{rank.next?.name || 'Complete'}</span>
+        </div>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-full bg-accent rounded-full" style={{ width: `${rank.progress * 100}%` }} />
+        </div>
+      </div>
+    </DetailShell>
+  )
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3">
+      <p className="metric-label">{label}</p>
+      <p className="text-lg font-extrabold mt-1 truncate">{value}</p>
     </div>
   )
 }
