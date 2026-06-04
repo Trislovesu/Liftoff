@@ -16,6 +16,7 @@ export default function AppTopBar({ user }) {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(DEFAULT_GYM_STATUS)
   const [notice, setNotice] = useState(false)
+  const [messageAlert, setMessageAlert] = useState(null)
   const [accounts, setAccounts] = useState([])
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState(DEFAULT_GYM_STATUS)
@@ -26,7 +27,10 @@ export default function AppTopBar({ user }) {
     setStatus(next)
     setDraft(next)
     const seen = localStorage.getItem(SEEN_STATUS_KEY)
-    if (announce && next.updated_at && next.updated_at !== seen) setNotice(true)
+    if (announce && next.updated_at && next.updated_at !== seen) {
+      setNotice(true)
+      if (next.message?.trim()) setMessageAlert(next)
+    }
   }
 
   async function refreshStatus({ announce = false } = {}) {
@@ -140,8 +144,6 @@ export default function AppTopBar({ user }) {
                 })}
               </div>
 
-              {notice && <div className="mt-3 text-xs text-accent bg-accent/10 border border-accent/30 rounded-xl px-3 py-2">{status.message}</div>}
-
               {admin && (
                 <AdminPanel
                   accounts={accounts}
@@ -155,7 +157,38 @@ export default function AppTopBar({ user }) {
           )}
         </div>
       </div>
+      {messageAlert && (
+        <StatusMessageAlert
+          status={messageAlert}
+          onClose={() => {
+            if (messageAlert.updated_at) localStorage.setItem(SEEN_STATUS_KEY, messageAlert.updated_at)
+            setMessageAlert(null)
+            setNotice(false)
+          }}
+        />
+      )}
     </header>
+  )
+}
+
+function StatusMessageAlert({ status, onClose }) {
+  return (
+    <div className="fixed inset-x-0 top-20 z-[60] px-4 pointer-events-none">
+      <div className="max-w-md mx-auto glass-card border-accent/40 p-4 rounded-3xl shadow-[0_18px_60px_rgba(0,0,0,0.6),0_0_28px_rgba(255,0,51,0.18)] pointer-events-auto">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-accent/15 border border-accent/35 flex items-center justify-center text-accent shrink-0">
+            <span className="material-symbols-outlined text-xl">priority_high</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="metric-label text-accent mb-1">Zion Fitness Update</p>
+            <p className="text-sm font-semibold leading-relaxed text-white/90">{status.message}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 text-white/45 hover:text-white flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 

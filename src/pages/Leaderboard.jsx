@@ -3,7 +3,7 @@ import { useApp } from '../store/AppContext.jsx'
 import Header from '../components/Header.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { rankFor, rankIndex, levelFromXP } from '../lib/xp.js'
-import { rpcLeaderboard } from '../lib/supabase.js'
+import { rpcLeaderboard, subscribeToLeaderboardUpdates } from '../lib/supabase.js'
 
 export default function Leaderboard() {
   const { state } = useApp()
@@ -12,14 +12,43 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  async function refreshRows({ showLoading = false } = {}) {
+    if (showLoading) setLoading(true)
+    setError('')
+    try {
+      setRows(await rpcLeaderboard())
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let dead = false
-    setLoading(true); setError('')
-    rpcLeaderboard()
-      .then(data => { if (!dead) setRows(data) })
-      .catch(e => { if (!dead) setError(e.message) })
-      .finally(() => { if (!dead) setLoading(false) })
-    return () => { dead = true }
+    const load = async () => {
+      setLoading(true); setError('')
+      try {
+        const data = await rpcLeaderboard()
+        if (!dead) setRows(data)
+      } catch (e) {
+        if (!dead) setError(e.message)
+      } finally {
+        if (!dead) setLoading(false)
+      }
+    }
+    load()
+    const unsubscribe = subscribeToLeaderboardUpdates(() => {
+      if (!dead) refreshRows({ showLoading: false })
+    })
+    const interval = setInterval(() => {
+      if (!dead) refreshRows({ showLoading: false })
+    }, 60000)
+    return () => {
+      dead = true
+      unsubscribe()
+      clearInterval(interval)
+    }
   }, [])
 
   const sorted = useMemo(() => {

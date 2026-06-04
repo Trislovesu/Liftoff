@@ -3,7 +3,7 @@ import { createInitialMuscles } from '../data/muscles.js'
 import { EXERCISE_BY_ID } from '../data/exerciseLibrary.js'
 import { applyMuscleXP, xpForSet, WORKOUT_COMPLETION_BONUS, PUMP_PIC_BONUS } from '../lib/xp.js'
 import { todayKey, daysBetween, startOfWeek } from '../lib/dates.js'
-import { rpcLogin, rpcSignup, rpcSaveState } from '../lib/supabase.js'
+import { broadcastLeaderboardUpdate, rpcLogin, rpcSignup, rpcSaveState } from '../lib/supabase.js'
 
 const AppCtx = createContext(null)
 
@@ -78,6 +78,7 @@ function reducer(state, action) {
       const user = rolloverWeekIfNeeded(action.user)
       // Backfill totalWorkouts from local history for older users
       if (!user.totalWorkouts && local.history?.length) user.totalWorkouts = local.history.length
+      if (action.isNew) user.needsOnboarding = true
       return { status: 'authed', session: action.session, user, workouts: local.workouts, history: local.history }
     }
 
@@ -215,6 +216,7 @@ export function AppProvider({ children }) {
     saveTimer.current = setTimeout(async () => {
       try {
         await rpcSaveState(state.session.username, state.session.pin_hash, state.user)
+        await broadcastLeaderboardUpdate()
         lastSaved.current = state.user
       } catch (e) { console.warn('Cloud sync failed:', e.message) }
     }, 1200)
@@ -225,7 +227,7 @@ export function AppProvider({ children }) {
     const { user, pin_hash } = await rpcSignup(username, pin, createInitialMuscles())
     const session = { username: user.username, pin_hash }
     saveSession(session)
-    dispatch({ type: 'AUTH_SUCCESS', session, user: rpcUserToClient(user) })
+    dispatch({ type: 'AUTH_SUCCESS', session, user: rpcUserToClient(user), isNew: true })
   }, [])
 
   const login = useCallback(async (username, pin) => {
@@ -241,16 +243,24 @@ export function AppProvider({ children }) {
     dispatch({ type: 'PATCH_USER', patch: { profilePicUrl: url } })
   }, [])
 
+  const setTrainingLocation = useCallback((gymType) => {
+    dispatch({ type: 'PATCH_USER', patch: { gymType } })
+  }, [])
+
+  const completeOnboarding = useCallback((patch = {}) => {
+    dispatch({ type: 'PATCH_USER', patch: { ...patch, needsOnboarding: false } })
+  }, [])
+
   const value = useMemo(() => ({
     state, dispatch,
     actions: {
-      signup, login, signOut, setProfilePic,
+      signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding,
       saveWorkout: (w) => dispatch({ type: 'SAVE_WORKOUT', workout: w }),
       deleteWorkout: (id) => dispatch({ type: 'DELETE_WORKOUT', id }),
       logWorkout: ({ workoutId, loggedExercises, durationSec, pumpPicBonus }) =>
         dispatch({ type: 'LOG_WORKOUT', workoutId, loggedExercises, durationSec, pumpPicBonus })
     }
-  }), [state, signup, login, signOut, setProfilePic])
+  }), [state, signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding])
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }
@@ -267,7 +277,8 @@ function rpcUserToClient(row) {
     personalBests: row.personal_bests ?? {},
     lastSessions: row.last_sessions ?? {},
     totalWorkouts: row.total_workouts ?? 0,
-    profilePicUrl: row.profile_pic_url ?? null
+    profilePicUrl: row.profile_pic_url ?? null,
+    gymType: row.gym_type ?? null
   }
 }
 

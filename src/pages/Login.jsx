@@ -1,18 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
-import { uploadImage } from '../lib/supabase.js'
-import { AVATAR_EMOJI_OPTIONS } from '../components/Avatar.jsx'
 
 export default function Login() {
-  const { state, actions } = useApp()
+  const { actions } = useApp()
   const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [step, setStep] = useState('auth')
 
   async function submit(e) {
     e.preventDefault()
@@ -23,14 +20,10 @@ export default function Login() {
     if (mode === 'signup' && pin !== pin2) { setError("PINs don't match."); return }
     setBusy(true)
     try {
-      if (mode === 'signup') { await actions.signup(u, pin); setStep('avatar') }
+      if (mode === 'signup') { await actions.signup(u, pin) }
       else { await actions.login(u, pin) }
     } catch (err) { setError(err.message || 'Something went wrong.') }
     finally { setBusy(false) }
-  }
-
-  if (step === 'avatar' && state.user) {
-    return <AvatarSetup onDone={() => {}} />
   }
 
   return (
@@ -132,53 +125,6 @@ export default function Login() {
         </footer>
       </motion.main>
       <div className="fixed bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-accent/10 to-transparent pointer-events-none" />
-    </div>
-  )
-}
-
-function AvatarSetup({ onDone }) {
-  const { state, actions } = useApp()
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-
-  async function onFile(e) {
-    const f = e.target.files?.[0]; if (!f) return
-    setBusy(true); setErr('')
-    try {
-      const url = await uploadImage(f, 'avatars', state.user.username)
-      actions.setProfilePic(url)
-      onDone()
-    } catch (e) { setErr(e.message || 'Upload failed') }
-    finally { setBusy(false) }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center relative">
-      <div className="mesh-gradient" />
-      <div className="glass-card p-6 w-full relative z-10">
-        <div className="text-center mb-5">
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 mx-auto mb-3 flex items-center justify-center">
-            <span className="material-symbols-outlined text-accent text-4xl">photo_camera</span>
-          </div>
-          <h2 className="text-2xl font-extrabold">Profile Photo</h2>
-          <p className="text-sm text-white/50">Upload one or grab an emoji. You can change it later.</p>
-        </div>
-        <label className="btn-primary w-full justify-center mb-3 cursor-pointer">
-          {busy ? 'Uploading...' : 'Upload Photo'}
-          <input type="file" accept="image/*" className="hidden" onChange={onFile} disabled={busy} />
-        </label>
-        <div className="metric-label text-center mb-3">Or pick an emoji</div>
-        <div className="grid grid-cols-5 gap-2 mb-4">
-          {AVATAR_EMOJI_OPTIONS.map(em => (
-            <button key={em} onClick={() => { actions.setProfilePic(em); onDone() }}
-              className="aspect-square text-2xl rounded bg-white/5 hover:bg-accent/10 border border-bg-700">
-              {em}
-            </button>
-          ))}
-        </div>
-        {err && <div className="text-sm text-danger mb-2">{err}</div>}
-        <button onClick={onDone} className="btn-ghost w-full">Skip for now</button>
-      </div>
     </div>
   )
 }

@@ -54,7 +54,7 @@ D:\Liftit\
     │   ├── tiers.js                muscle tier ladder (Bronze→Master + Legend) with new color ramp: blue→teal→gold→orange→purple
     │   ├── storage.js              LocalStorage primitives (also exists; legacy)
     │   ├── dates.js                week/day helpers
-    │   ├── supabase.js             client + hashPin + ALL rpc* helpers + uploadImage()
+    │   ├── supabase.js             client + hashPin + ALL rpc* helpers + Realtime broadcast helpers + uploadImage()
     │   ├── gymStatus.js            gym location/status constants + status normalization helpers
     │   ├── exerciseMedia.js        optional WorkoutX GIF/media cache in LocalStorage for exercise thumbnails
     │   ├── exifDate.js             minimal JPEG EXIF DateTimeOriginal reader + checkPhotoIsRecent()
@@ -63,8 +63,9 @@ D:\Liftit\
     │   └── AppContext.jsx          THE store — useReducer + actions. SINGLE seam between UI and Supabase.
     ├── components/
     │   ├── Avatar.jsx              universal avatar: URL → emoji → initial fallback
-    │   ├── AppTopBar.jsx           fixed Stitch-style top brand bar with avatar + glowing Z gym status/admin popover
+    │   ├── AppTopBar.jsx           fixed Stitch-style top brand bar with avatar + glowing Z gym status/admin popover + global update alert
     │   ├── BodyHeaderStats.jsx     compact top bar on Body page (avatar, level, 🏋️ workouts, ⚡ weekly XP)
+    │   ├── SignupOnboarding.jsx    post-signup animated avatar/emoji + gym/home setup flow
     │   ├── BodygraphTabs.jsx       only [Bodygraph, Gallery] — Leagues/Analytics removed
     │   ├── BodyFigure.jsx          DELETED (replaced by FrontBackBodyMap using image)
     │   ├── FrontBackBodyMap.jsx    THE bodygraph — image + SVG overlay paths. Includes drag-edit mode behind EDIT_MODE flag.
@@ -77,11 +78,11 @@ D:\Liftit\
     │   ├── MuscleCard.jsx          dashboard muscle preview
     │   ├── StatCard.jsx            dashboard stat tiles
     │   ├── XPProgressBar.jsx       progress bar primitive
-    │   ├── BottomNav.jsx           Stitch-style fixed glass dock nav: Home, Log, Body, Ranks, Profile
+    │   ├── BottomNav.jsx           Stitch-style fixed glass dock nav: Home, Log, disabled Body, Ranks, Profile
     │   └── Header.jsx              page header with back button
     └── pages/
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
-        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome label, line chart, metric grid with Level/Rank detail sheets, muscle rankings, recent lifts, pump-pic advice panel, floating start action
+        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome label, weekly weight graph, metric grid with Level/Rank detail sheets, muscle fatigue, recent lifts, pump-pic advice panel, floating start action
         ├── Workouts.jsx            list of saved workouts
         ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
         ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
@@ -104,7 +105,8 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
   personalBests: { [exerciseKey]: { weight, reps } },
   lastSessions:  { [exerciseKey]: { weight, reps, date } },  // drives "last time" hints
   totalWorkouts,            // replaced streak as headline gym stat
-  profilePicUrl             // URL (Supabase storage) OR emoji char OR null
+  profilePicUrl,            // URL (Supabase storage) OR emoji char OR null
+  gymType                   // 'gym', 'home', or null from signup onboarding
 }
 ```
 
@@ -234,7 +236,7 @@ git push
 |---|---|
 | `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard. |
 | `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
-| `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status realtime subscription/broadcast, and `uploadImage`. |
+| `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status and leaderboard realtime subscription/broadcast helpers, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
 | `lib/xp.js` | `RANKS`, `rankFor`, `rankIndex`, `levelFromXP`, `muscleProgress`, `applyMuscleXP`, `xpForSet`, `WORKOUT_COMPLETION_BONUS`, `PUMP_PIC_BONUS`, `sanityCheckSet`. |
@@ -243,9 +245,10 @@ git push
 | `lib/exifDate.js` | `readPhotoTakenAt` + `checkPhotoIsRecent` (uses funny rejections). |
 | `lib/funnyRejects.js` | `funnyOldPhotoReject(ageMs)`, `randomCompliment()`, `lastTimeNudge(weight, reps)`. |
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
-| `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`. |
+| `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`; admin update messages appear as a themed on-screen alert outside the Z panel. |
+| `components/SignupOnboarding.jsx` | Animated post-signup flow: upload photo or choose emoji, then choose Gym/Home training setup. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
-| `pages/Dashboard.jsx` | Home dashboard. Level and Rank metric cards open minimal themed detail sheets; Workouts and Weekly XP are intentionally inert. |
+| `pages/Dashboard.jsx` | Home dashboard. Weekly Progress charts weekly lifted weight volume, Level and Rank metric cards open minimal themed detail sheets, Muscle Fatigue uses recent workout history with 42-72h decay estimates. |
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, and routine editor with Add from library. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
@@ -255,6 +258,8 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Polish/onboarding/fatigue pass:** Weekly Progress now charts weekly lifted weight volume instead of XP. Added global transition polish and route fade-ins. New signups go through animated avatar/emoji selection followed by Gym/Home setup (`gym_type` in Supabase). Leaderboard refreshes live through Realtime broadcast after cloud sync. Dashboard `Muscle Rankings` became `Muscle Fatigue`, calculated from recent logged muscle work with a 42-72 hour recovery decay and tap-for-estimate detail sheet. Bottom Body tab is disabled/gray for now.
+- **Gym update alert:** admin `Update message` no longer appears inside the Z status dropdown. When a new gym status message is pushed, users see a dismissible themed alert on the main screen; the Z button still shows the small red unread indicator.
 - **Realtime gym status + leaner dashboard:** gym status now subscribes to Supabase Realtime and admin saves broadcast directly to connected users without refresh; subscription/broadcast failures warn in the browser console. Dashboard welcome keeps only the small welcome label; the large rotating motivation sentence was removed. Level detail sheet keeps only `Next milestone` and `Milestone XP needed` boxes; milestones are every 50 levels up to 500.
 - **Dashboard stat detail sheets:** Level and Rank cards are now the only clickable metric cards. Level opens a clean path-to-500 sheet with current level progress and milestone XP. Rank opens the full rank ladder with current-rank indicator and XP to next rank. Workouts and Weekly XP remain non-interactive.
 - **Workout library flow + status copy cleanup:** gym status popover now shows a bigger `Zion Fitness Status` label with no availability heading; location cards show `Highway Plaza` and `SunPlaza` only. WorkoutBuilder now follows the Stitch custom-routine flow: routine home first, Create New Routine reveals up-to-3 muscle selection, Next opens an organized library, and the editor only shows routine name plus `Add from library`. Added optional `exerciseMedia.js` cache for WorkoutX-style exercise GIF thumbnails with local fallback.

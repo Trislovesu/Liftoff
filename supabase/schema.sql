@@ -20,6 +20,7 @@ create table if not exists public.users (
 alter table public.users add column if not exists total_workouts int not null default 0;
 alter table public.users add column if not exists profile_pic_url text;
 alter table public.users add column if not exists last_sessions jsonb not null default '{}'::jsonb;
+alter table public.users add column if not exists gym_type text;
 
 create table if not exists public.pump_photos (
   id uuid primary key default gen_random_uuid(),
@@ -120,6 +121,7 @@ begin
     last_sessions      = coalesce(p_state->'lastSessions', last_sessions),
     total_workouts     = coalesce((p_state->>'totalWorkouts')::int, total_workouts),
     profile_pic_url    = coalesce(p_state->>'profilePicUrl', profile_pic_url),
+    gym_type           = coalesce(nullif(p_state->>'gymType', ''), gym_type),
     updated_at         = now()
   where username = lower(trim(p_username))
   returning * into u;

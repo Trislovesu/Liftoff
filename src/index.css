@@ -5,10 +5,24 @@
 :root { color-scheme: dark; }
 
 html, body, #root { height: 100%; }
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow, opacity, filter, transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
 body {
   font-family: 'Geist', 'Inter', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   background: #0a0a0a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 h1, h2, h3,

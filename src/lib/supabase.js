@@ -71,6 +71,9 @@ export async function rpcGetGymStatus() {
 const GYM_STATUS_CHANNEL = 'gym-status-updates'
 let gymStatusChannel = null
 let gymStatusChannelReady = false
+const LEADERBOARD_CHANNEL = 'leaderboard-updates'
+let leaderboardChannel = null
+let leaderboardChannelReady = false
 
 export function subscribeToGymStatus(onChange) {
   const channel = supabase
@@ -107,6 +110,52 @@ export async function broadcastGymStatus(status) {
     payload: status
   })
   if (result !== 'ok') console.warn('[Liftit] Gym status broadcast failed:', result)
+}
+
+export function subscribeToLeaderboardUpdates(onChange) {
+  const channel = supabase
+    .channel(LEADERBOARD_CHANNEL)
+    .on('broadcast', { event: 'leaderboard_updated' }, () => onChange())
+    .subscribe(status => {
+      leaderboardChannelReady = status === 'SUBSCRIBED'
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[Liftit] Leaderboard realtime subscription failed:', status)
+      }
+    })
+
+  leaderboardChannel = channel
+  return () => {
+    if (leaderboardChannel === channel) leaderboardChannel = null
+    leaderboardChannelReady = false
+    supabase.removeChannel(channel)
+  }
+}
+
+export async function broadcastLeaderboardUpdate() {
+  const send = channel => channel.send({
+    type: 'broadcast',
+    event: 'leaderboard_updated',
+    payload: { at: new Date().toISOString() }
+  })
+  if (!leaderboardChannel || !leaderboardChannelReady) {
+    const temp = supabase.channel(`${LEADERBOARD_CHANNEL}-send-${Date.now()}`)
+    await new Promise(resolve => {
+      temp.subscribe(async status => {
+        if (status !== 'SUBSCRIBED') return
+        const result = await send(temp)
+        if (result !== 'ok') console.warn('[Liftit] Leaderboard broadcast failed:', result)
+        await supabase.removeChannel(temp)
+        resolve()
+      })
+      setTimeout(async () => {
+        await supabase.removeChannel(temp)
+        resolve()
+      }, 3000)
+    })
+    return
+  }
+  const result = await send(leaderboardChannel)
+  if (result !== 'ok') console.warn('[Liftit] Leaderboard broadcast failed:', result)
 }
 
 export async function rpcAdminUpdateGymStatus(username, pin_hash, status) {
