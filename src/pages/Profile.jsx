@@ -48,7 +48,7 @@ export default function Profile() {
           </div>
           <RankBadge rank={current} size={36} />
         </div>
-        <XPProgressBar value={lvl.progress} color="#888888" label={`${user.totalXP.toLocaleString()} XP`} />
+        <XPProgressBar value={lvl.progress} color="#ff0033" label={`${user.totalXP.toLocaleString()} XP`} />
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-4">
@@ -90,7 +90,7 @@ export default function Profile() {
       {picOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur p-3"
           onClick={() => setPicOpen(false)}>
-          <div className="bg-bg-800 border border-white/10 rounded-2xl w-full max-w-sm p-5"
+          <div className="card w-full max-w-sm p-5"
             onClick={e => e.stopPropagation()}>
             <div className="text-center mb-3">
               <h3 className="text-lg font-extrabold">Profile Photo</h3>
@@ -106,7 +106,7 @@ export default function Profile() {
               {AVATAR_EMOJI_OPTIONS.map(em => (
                 <button key={em}
                   onClick={() => { actions.setProfilePic(em); setPicOpen(false) }}
-                  className="aspect-square text-2xl rounded-xl bg-white/5 hover:bg-white/10 border border-white/10">
+                  className="aspect-square text-2xl rounded bg-white/5 hover:bg-accent/10 border border-bg-700">
                   {em}
                 </button>
               ))}

@@ -5,11 +5,11 @@ export const MUSCLE_GROUPS = [
 
 export const MUSCLE_STATUS = [
   { name: 'Untrained', min: 0,  color: '#64748b' },
-  { name: 'Beginner',  min: 1,  color: '#38e1b0' },
-  { name: 'Active',    min: 4,  color: '#7c5cff' },
-  { name: 'Strong',    min: 8,  color: '#ffcc4d' },
-  { name: 'Beast',     min: 12, color: '#ff8a3d' },
-  { name: 'Elite',     min: 18, color: '#ff5e7a' }
+  { name: 'Beginner',  min: 1,  color: '#ffb3af' },
+  { name: 'Active',    min: 4,  color: '#ff5357' },
+  { name: 'Strong',    min: 8,  color: '#ff0033' },
+  { name: 'Beast',     min: 12, color: '#bf0024' },
+  { name: 'Elite',     min: 18, color: '#ffdad8' }
 ]
 
 export function statusForLevel(level) {

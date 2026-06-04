@@ -1,9 +1,9 @@
-export default function StatCard({ label, value, sub, icon, accent = '#7c5cff' }) {
+export default function StatCard({ label, value, sub, icon, accent = '#ff0033' }) {
   return (
     <div className="card p-4 flex items-center gap-3">
       {icon && (
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+          className="w-10 h-10 rounded flex items-center justify-center text-lg"
           style={{ background: `${accent}22`, color: accent, boxShadow: `0 0 18px ${accent}33` }}
         >
           {icon}

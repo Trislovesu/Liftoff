@@ -29,13 +29,13 @@ export default function ExerciseAbout() {
       </div>
 
       <Section title="Instructions" items={ex.instructions} />
-      <Section title="Form Tips" items={ex.tips} accent="#38e1b0" />
-      <Section title="Common Mistakes" items={ex.mistakes} accent="#ff5e7a" />
+      <Section title="Form Tips" items={ex.tips} accent="#ffb3af" />
+      <Section title="Common Mistakes" items={ex.mistakes} accent="#ff5357" />
     </div>
   )
 }
 
-function Section({ title, items, accent = '#7c5cff' }) {
+function Section({ title, items, accent = '#ff0033' }) {
   if (!items || items.length === 0) return null
   return (
     <div className="card p-4 mb-3">

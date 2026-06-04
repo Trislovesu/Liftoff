@@ -44,7 +44,7 @@ export default function Login() {
         <div className="card p-1 flex mb-4">
           {[{ id: 'login', label: 'Log In' }, { id: 'signup', label: 'Sign Up' }].map(t => (
             <button key={t.id} onClick={() => { setMode(t.id); setError('') }}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
+              className={`flex-1 py-2 rounded text-sm font-semibold transition ${
                 mode === t.id ? 'bg-accent text-white shadow-glow' : 'text-white/60'
               }`}>{t.label}</button>
           ))}
@@ -114,7 +114,7 @@ function AvatarSetup({ onDone }) {
       <div className="grid grid-cols-5 gap-2 mb-4">
         {AVATAR_EMOJI_OPTIONS.map(em => (
           <button key={em} onClick={() => { actions.setProfilePic(em); onDone() }}
-            className="aspect-square text-2xl rounded-xl bg-white/5 hover:bg-white/10 border border-white/10">
+            className="aspect-square text-2xl rounded bg-white/5 hover:bg-accent/10 border border-bg-700">
             {em}
           </button>
         ))}

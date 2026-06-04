@@ -11,7 +11,7 @@ export default function BodyHeaderStats({ user }) {
         <svg viewBox="0 0 48 48" className="absolute inset-0 -rotate-90">
           <circle cx="24" cy="24" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
           <circle cx="24" cy="24" r="22" fill="none"
-            stroke="#888888" strokeWidth="3" strokeLinecap="round"
+            stroke="#ff0033" strokeWidth="3" strokeLinecap="round"
             strokeDasharray={`${lvl.progress * ringCircumference} ${ringCircumference}`} />
         </svg>
         <div className="absolute inset-1.5">
@@ -26,8 +26,8 @@ export default function BodyHeaderStats({ user }) {
 
       <div className="flex-1" />
 
-      <Pill icon="🏋️" value={user.totalWorkouts || 0}      accent="#aaaaaa" />
-      <Pill icon="⚡"  value={user.weeklyXP.toLocaleString()} accent="#38e1b0" />
+      <Pill icon="🏋️" value={user.totalWorkouts || 0}      accent="#ff5357" />
+      <Pill icon="⚡"  value={user.weeklyXP.toLocaleString()} accent="#ff0033" />
     </div>
   )
 }

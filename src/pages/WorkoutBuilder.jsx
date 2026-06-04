@@ -145,7 +145,7 @@ function LibraryPicker({ targetMuscles, onPick, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3">
-      <div className="bg-bg-800 border border-white/10 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+      <div className="card w-full max-w-md max-h-[80vh] flex flex-col">
         <div className="p-3 border-b border-white/5 flex gap-2">
           <input autoFocus value={q} onChange={e => setQ(e.target.value)}
             placeholder="Search exercises..." className="input flex-1" />

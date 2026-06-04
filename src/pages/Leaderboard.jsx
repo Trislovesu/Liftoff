@@ -48,7 +48,7 @@ export default function Leaderboard() {
           { id: 'rank',   label: 'Rank' }
         ].map(t => (
           <button key={t.id} onClick={() => setMode(t.id)}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
+            className={`flex-1 py-2 rounded text-sm font-semibold transition ${
               mode === t.id ? 'bg-accent text-white shadow-glow' : 'text-white/60'
             }`}>{t.label}</button>
         ))}

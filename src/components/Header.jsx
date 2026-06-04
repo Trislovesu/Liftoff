@@ -5,7 +5,7 @@ export default function Header({ title, back, right }) {
     <div className="flex items-center justify-between px-1 mb-4">
       <div className="flex items-center gap-2 min-w-0">
         {back && (
-          <Link to={back} className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center">
+          <Link to={back} className="w-9 h-9 rounded bg-white/5 hover:bg-accent/10 flex items-center justify-center">
             <span className="text-lg">←</span>
           </Link>
         )}

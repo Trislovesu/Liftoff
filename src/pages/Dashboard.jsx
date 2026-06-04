@@ -21,7 +21,7 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="card-grad p-5 relative overflow-hidden">
         <div className="flex items-center gap-3 mb-4">
-          <Avatar user={user} size={48} ring="#888888" />
+          <Avatar user={user} size={48} ring="#ff0033" />
           <div className="min-w-0">
             <div className="text-xs text-white/50 font-semibold">Welcome back</div>
             <div className="text-xl font-extrabold truncate">{user.username}</div>
@@ -31,7 +31,7 @@ export default function Dashboard() {
             <div className="text-2xl font-extrabold text-accent leading-none">{lvl.level}</div>
           </div>
         </div>
-        <XPProgressBar value={lvl.progress} color="#888888"
+        <XPProgressBar value={lvl.progress} color="#ff0033"
           label={`${user.totalXP.toLocaleString()} XP`}
           sub={`${(lvl.xpForLevel - lvl.xpIntoLevel).toLocaleString()} to Level ${lvl.level + 1}`} />
       </motion.div>
@@ -39,8 +39,8 @@ export default function Dashboard() {
       <RankCard totalXP={user.totalXP} />
 
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Workouts" value={user.totalWorkouts || 0} sub="lifetime"  accent="#aaaaaa" icon="🏋️" />
-        <StatCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" accent="#38e1b0" icon="⚡" />
+        <StatCard label="Workouts" value={user.totalWorkouts || 0} sub="lifetime"  accent="#ff5357" icon="🏋️" />
+        <StatCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" accent="#ff0033" icon="⚡" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

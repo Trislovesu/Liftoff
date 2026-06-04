@@ -47,7 +47,7 @@ export default function Gallery() {
                 <div className="text-[11px] text-white/40 italic">{p.caption || 'Locked in.'}</div>
               </div>
               {p.xp_bonus > 0 && (
-                <div className="chip text-xp" style={{ borderColor: '#38e1b055' }}>+{p.xp_bonus} XP</div>
+                <div className="chip text-xp" style={{ borderColor: '#ff003355' }}>+{p.xp_bonus} XP</div>
               )}
             </div>
             <img src={p.image_url} alt="" className="w-full h-auto block" />

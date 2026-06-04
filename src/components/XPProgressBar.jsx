@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-export default function XPProgressBar({ value = 0, label, sub, color = '#7c5cff', height = 8 }) {
+export default function XPProgressBar({ value = 0, label, sub, color = '#ff0033', height = 8 }) {
   const pct = Math.max(0, Math.min(1, value)) * 100
   return (
     <div className="w-full">
@@ -11,7 +11,7 @@ export default function XPProgressBar({ value = 0, label, sub, color = '#7c5cff'
         </div>
       )}
       <div
-        className="w-full bg-white/5 rounded-full overflow-hidden"
+        className="w-full bg-bg-700 rounded-full overflow-hidden"
         style={{ height }}
       >
         <motion.div
@@ -20,7 +20,7 @@ export default function XPProgressBar({ value = 0, label, sub, color = '#7c5cff'
           transition={{ duration: 0.7, ease: 'easeOut' }}
           className="h-full rounded-full"
           style={{
-            background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+            background: `linear-gradient(90deg, ${color}, ${color}dd)`,
             boxShadow: `0 0 12px ${color}66`
           }}
         />
