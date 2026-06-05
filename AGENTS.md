@@ -43,7 +43,7 @@ D:\Liftit\
 └── src/
     ├── main.jsx                    HashRouter + AppProvider
     ├── App.jsx                     route table, auth gate
-    ├── index.css                   Tailwind layers + Kinetic Dark Redux primitives + tier-effect keyframes
+    ├── index.css                   Tailwind layers + Kinetic Dark Redux primitives + tier-effect keyframes + exercise thumbnail poses
     ├── assets/bodygraph.png        the actual body image (user-supplied)
     ├── data/
     │   ├── muscles.js              11 muscle groups + red-edition status colors
@@ -80,19 +80,20 @@ D:\Liftit\
     │   ├── MuscleCard.jsx          dashboard muscle preview
     │   ├── StatCard.jsx            dashboard stat tiles
     │   ├── XPProgressBar.jsx       progress bar primitive
+    │   ├── ExerciseThumb.jsx       shared exercise thumbnail: cached media URL or red/charcoal fallback pose
     │   ├── BottomNav.jsx           Stitch-style fixed glass dock nav: Home, Log, disabled Body, Ranks, Profile
     │   └── Header.jsx              page header with back button
     └── pages/
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
         ├── Dashboard.jsx           Stitch red-edition dashboard: verified username welcome label, weekly weight graph, metric grid with Level/Rank detail sheets, collapsible recent muscles trained, recent lifts, floating start action
-        ├── Workouts.jsx            list of saved workouts
+        ├── Workouts.jsx            saved routine cards with previews, visibility chip, edit/delete/start actions
         ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
-        ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
+        ├── WorkoutLogger.jsx       Liftit active session: timer/progress header, exercise thumbnail cards, prev/lbs/reps set rows, FinishModal asks for pump pic.
         ├── WorkoutHistoryDetail.jsx  /history/:id — sets/reps/weight breakdown, XP, completion + pump bonuses
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
         ├── Gallery.jsx             pump pic feed, upload with EXIF check
         ├── Leaderboard.jsx         podium top 3 + normal rows, avatars, clickable player rows, 3 sort modes
-        ├── ExerciseAbout.jsx       /exercise/:id — instructions, tips, mistakes
+        ├── ExerciseAbout.jsx       /exercise/:id — exercise guide tabs, muscles-worked visual, target areas
         ├── PublicProfile.jsx       /u/:username public profile view: featured PR, body weight, public routines
         └── Profile.jsx             avatar upload modal (or emoji), verification code modal, body weight, featured PR, level/rank, clickable history, sign out
 ```
@@ -195,6 +196,7 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - Don't hard-code Zion Fitness House database validation yet. For now, the verified badge accepts any 5 digit numeric member code for testing.
 - Don't redesign the bodygraph from scratch. The image is the visual source of truth; we only adjust overlays.
 - Don't change unrelated pages when asked to fix one thing.
+- Don't copy outside app themes/colors/assets from reference screenshots; translate layout ideas into Liftit's red/charcoal system.
 
 ## Style notes / preferences
 
@@ -267,11 +269,15 @@ git push
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
 | `components/ActiveWorkoutLayer.jsx` | Global active-workout guard. Prompts once before leaving an active logger, can run workout in background, and shows a top progress banner that returns to the logger. |
 | `components/VerifiedName.jsx` | Username + glowing verified tick shown when `zionVerified` is true. |
+| `components/ExerciseThumb.jsx` | Shared exercise thumbnail used by routine cards, builder library rows, logger cards, and exercise guide pages. Uses cached media when available, otherwise a small red/charcoal fallback pose. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`; admin update messages appear as a themed on-screen alert outside the Z panel. |
 | `components/SignupOnboarding.jsx` | Animated post-signup flow: upload photo or choose emoji, then choose Gym/Home training setup. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
 | `pages/Dashboard.jsx` | Home dashboard. Weekly Progress charts weekly lifted weight volume, Level and Rank metric cards open minimal themed detail sheets, Recent Muscles Trained is a collapsible list derived from latest `muscleGain`, and the old pro-advice card is removed. |
-| `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, and Public/Private profile visibility toggle. |
+| `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, Public/Private profile visibility toggle, and shared exercise thumbnails. |
+| `pages/Workouts.jsx` | Saved routine list with preview exercise rows, public/private chips, estimated duration, and edit/delete/start actions. |
+| `pages/WorkoutLogger.jsx` | Active session logger with timer/progress header, exercise thumbnail cards, prev/lbs/reps set rows, numeric text inputs, and `FinishModal` pump-pic XP flow. |
+| `pages/ExerciseAbout.jsx` | Exercise guide page with About/Tips/Mistakes tabs, shared thumbnail hero, muscles-worked visual, and target-area rows. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
 | `pages/PublicProfile.jsx` | Public player profile for `/u/:username`; shows body weight recency, Big 3 featured PRs, and public routine snapshots. |
@@ -282,6 +288,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Workout UI visual pass:** active workout logger, exercise guide, and routine list were restyled using only Liftit's red/charcoal theme. Added shared `ExerciseThumb` for cached exercise media with a red fallback pose, routine cards now show exercise previews, the logger has a compact timer/progress header plus prev/lbs/reps set rows, and exercise pages use real About/Tips/Mistakes tabs with a muscles-worked visual. No auth, schema, dashboard, navigation, XP, or logging data logic changed.
 - **Manual PR entry + signup/podium polish:** Profile Big 3 PRs are now manually editable; tapping Bench Press, Squat, or Deadlift opens weight/reps entry and displays animated PR cards. Signup uses a dedicated `Sign up now!` button under sign-in and requires email + exactly 6 digit PIN. Body tab/page has a red Coming Soon tape treatment. Leaderboard top 3 render as a podium with native celebration/fire effects; raw LottieFiles page links were not embedded because they are not direct animation asset URLs.
 - **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.
 - **Admin + verified + dashboard cleanup:** admin panel now shows RPC errors, lists account rows, can soft-disable users and reset XP. Disabled users get `Account disabled by admin` on login; reset users see `XP reset by admin`, and stale local sync cannot restore reset XP. Signup onboarding and Profile now accept an optional 5 digit Zion Fitness House code and show a glowing verified tick beside usernames. Dashboard replaced Muscle Fatigue with a collapsible Recent Muscles Trained section and removed the pro-advice panel.

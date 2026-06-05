@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
+import ExerciseThumb from '../components/ExerciseThumb.jsx'
 import Header from '../components/Header.jsx'
 import { xpForSet, WORKOUT_COMPLETION_BONUS, PUMP_PIC_BONUS, sanityCheckSet } from '../lib/xp.js'
 import { lastTimeNudge } from '../lib/funnyRejects.js'
@@ -63,8 +64,10 @@ export default function WorkoutLogger() {
 
   if (!workout) {
     return (
-      <div><Header title="Workout" back="/workouts" />
-        <div className="glass-card p-6 text-center text-white/50">Workout not found.</div></div>
+      <div>
+        <Header title="Workout" back="/workouts" />
+        <div className="glass-card p-6 text-center text-white/50">Workout not found.</div>
+      </div>
     )
   }
 
@@ -116,86 +119,109 @@ export default function WorkoutLogger() {
 
   return (
     <div className="pb-24">
-      <section className="mb-8">
-        <div className="flex justify-between items-end mb-3">
-          <div className="min-w-0">
-            <h1 className="text-3xl font-extrabold text-accent uppercase tracking-tight truncate">{workout.name}</h1>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              <span className="metric-label">Active session</span>
-            </div>
+      <section className="mb-5 glass-card rounded-3xl overflow-hidden">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3">
+          <button onClick={() => navigate('/workouts')} className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:border-accent/50" aria-label="Back to routines">
+            <span className="material-symbols-outlined">keyboard_arrow_down</span>
+          </button>
+          <div className="text-center min-w-0">
+            <div className="text-4xl font-extrabold tracking-tight text-white tabular-nums">{mins}:{secs}</div>
+            <div className="metric-label mt-1 truncate">{workout.name}</div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,0,51,0.35)]">{mins}:{secs}</div>
-            <span className="metric-label">Elapsed</span>
+          <button onClick={attemptFinish} className="w-10 h-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-[0_0_18px_rgba(255,0,51,0.34)]" aria-label="Finish workout">
+            <span className="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="flex items-center justify-between text-xs text-white/45 mb-2">
+            <span>{doneSets}/{totalSets} sets complete</span>
+            <span className="font-bold text-accent">+{liveXP} XP</span>
           </div>
-        </div>
-        <div className="h-1.5 w-full bg-bg-700/40 rounded-full overflow-hidden">
-          <div className="h-full bg-accent shadow-[0_0_10px_rgba(255,0,51,0.6)]" style={{ width: `${Math.max(8, completion * 100)}%` }} />
-        </div>
-        <div className="flex justify-between mt-2 metric-label">
-          <span>{doneSets}/{totalSets} sets</span>
-          <span>+{liveXP} XP</span>
+          <div className="h-2 w-full bg-bg-950 rounded-full overflow-hidden border border-white/5">
+            <motion.div
+              className="h-full bg-accent shadow-[0_0_12px_rgba(255,0,51,0.55)]"
+              initial={false}
+              animate={{ width: `${Math.max(6, completion * 100)}%` }}
+            />
+          </div>
         </div>
       </section>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {logged.map((ex, i) => {
           const pbKey = ex.libraryId || ex.name
           const last = state.user.lastSessions?.[pbKey]
           const nudge = last ? lastTimeNudge(last.weight, last.reps) : null
+          const prevText = last ? `${last.weight || 0} x ${last.reps || 0}` : '-'
           return (
-            <div key={ex.id} className="glass-card rounded-3xl p-4 relative overflow-hidden hover:border-accent/40 transition">
-              <div className="flex justify-between items-start mb-4">
-                <div className="min-w-0">
-                  <h2 className="text-2xl font-extrabold truncate">{ex.name}</h2>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <span className="px-2 py-0.5 bg-bg-600 rounded metric-label">{ex.primaryMuscle}</span>
-                    {ex.secondaryMuscles?.slice(0, 1).map(m => <span key={m} className="px-2 py-0.5 bg-bg-600 rounded metric-label">{m}</span>)}
+            <section key={ex.id} className="glass-card rounded-3xl overflow-hidden hover:border-accent/35 transition">
+              <div className="p-4 flex items-center gap-3 border-b border-white/10 bg-bg-950/20">
+                <ExerciseThumb exercise={ex} size="md" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-extrabold truncate">{ex.name}</h2>
+                  <div className="flex gap-1.5 mt-1 overflow-hidden">
+                    <span className="chip shrink-0">{ex.primaryMuscle}</span>
+                    {ex.secondaryMuscles?.slice(0, 1).map(m => <span key={m} className="chip shrink-0 text-white/45">{m}</span>)}
                   </div>
                 </div>
                 {ex.libraryId && (
-                  <Link to={`/exercise/${ex.libraryId}`} className="text-white/45 hover:text-accent transition">
-                    <span className="material-symbols-outlined">more_vert</span>
+                  <Link to={`/exercise/${ex.libraryId}`} className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:border-accent/50" aria-label={`About ${ex.name}`}>
+                    <span className="material-symbols-outlined text-lg">info</span>
                   </Link>
                 )}
               </div>
 
               {nudge && (
-                <div className="text-[11px] text-white/45 mb-3 border border-white/10 bg-bg-950/40 rounded-lg px-3 py-2">
-                  {nudge} Try a touch more.
+                <div className="mx-4 mt-4 text-xs text-white/55 border border-white/10 bg-bg-950/45 rounded-2xl px-3 py-2">
+                  {nudge} Try a touch more if it feels clean.
                 </div>
               )}
 
-              <div className="grid grid-cols-12 gap-2 mb-2 metric-label px-2">
+              <div className="px-4 pt-4 grid grid-cols-12 gap-2 metric-label">
                 <div className="col-span-2">Set</div>
-                <div className="col-span-4">Lbs</div>
-                <div className="col-span-4">Reps</div>
-                <div className="col-span-2 text-right">Done</div>
+                <div className="col-span-3">Prev</div>
+                <div className="col-span-3 text-center">Lbs</div>
+                <div className="col-span-3 text-center">Reps</div>
+                <div className="col-span-1 text-right">Done</div>
               </div>
 
-              <div className="space-y-2">
+              <div className="px-4 pb-4 pt-2 space-y-2">
                 {ex.sets.map((s, j) => {
                   const active = !s.completed && ex.sets.slice(0, j).every(prev => prev.completed)
                   return (
-                    <div key={j} className={`grid grid-cols-12 gap-2 items-center p-2.5 rounded-2xl border transition-all ${
-                      s.completed ? 'bg-bg-950/50 border-transparent' : active ? 'bg-bg-700/40 border-accent/30 kinetic-glow' : 'bg-bg-950/40 border-transparent'
+                    <div key={j} className={`grid grid-cols-12 gap-2 items-center rounded-2xl border px-2 py-2.5 transition-all ${
+                      s.completed ? 'bg-accent/15 border-accent/35 shadow-[inset_3px_0_0_rgba(255,0,51,0.9)]' : active ? 'bg-bg-700/45 border-accent/25 kinetic-glow' : 'bg-bg-950/45 border-white/5'
                     }`}>
-                      <div className={`col-span-2 font-semibold ${active ? 'text-accent' : 'text-white/70'}`}>{j + 1}</div>
-                      <input type="text" inputMode="numeric" value={s.weight === 0 ? '' : s.weight}
+                      <div className={`col-span-2 h-11 rounded-xl flex items-center justify-center font-extrabold ${s.completed ? 'text-accent' : 'text-white/70 bg-white/5'}`}>
+                        {j + 1}
+                      </div>
+                      <div className="col-span-3 text-sm text-white/55 truncate">{prevText}</div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={s.weight === 0 ? '' : s.weight}
                         onChange={e => updateSet(i, j, { weight: Number(e.target.value.replace(/\D/g, '')) || 0 })}
                         placeholder="0"
-                        className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
-                      <input type="text" inputMode="numeric" value={s.reps === 0 ? '' : s.reps}
+                        className="col-span-3 h-11 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white text-center font-extrabold text-lg px-1 rounded-xl"
+                      />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={s.reps === 0 ? '' : s.reps}
                         onChange={e => updateSet(i, j, { reps: Number(e.target.value.replace(/\D/g, '')) || 0 })}
                         placeholder="0"
-                        className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
-                      <div className="col-span-2 flex justify-end">
-                        <button onClick={() => updateSet(i, j, { completed: !s.completed })}
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center border transition ${
-                            s.completed ? 'bg-accent border-accent text-white shadow-[0_0_10px_rgba(255,0,51,0.35)]' : 'border-white/20 text-white/45 hover:border-accent hover:text-accent'
-                          }`}>
-                          <span className="material-symbols-outlined text-[18px]">check</span>
+                        className="col-span-3 h-11 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white text-center font-extrabold text-lg px-1 rounded-xl"
+                      />
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          onClick={() => updateSet(i, j, { completed: !s.completed })}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border transition ${
+                            s.completed ? 'bg-accent border-accent text-white shadow-[0_0_14px_rgba(255,0,51,0.34)]' : 'bg-white/5 border-white/15 text-white/55 hover:border-accent hover:text-accent'
+                          }`}
+                          aria-label={s.completed ? 'Mark set incomplete' : 'Mark set complete'}
+                        >
+                          <span className="material-symbols-outlined text-[22px]">check</span>
                         </button>
                       </div>
                       {ex.sets.length > 1 && (
@@ -206,10 +232,13 @@ export default function WorkoutLogger() {
                 })}
               </div>
 
-              <button onClick={() => addSet(i)} className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl metric-label hover:bg-bg-700/50 hover:text-accent hover:border-accent/50 transition flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-sm">add</span> Add set
-              </button>
-            </div>
+              <div className="px-4 pb-4">
+                <button onClick={() => addSet(i)} className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl metric-label hover:bg-accent/10 hover:text-accent hover:border-accent/45 transition flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  Add set
+                </button>
+              </div>
+            </section>
           )
         })}
       </div>

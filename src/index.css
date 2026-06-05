@@ -164,3 +164,71 @@ h1, h2, h3,
   100% { filter: drop-shadow(0 -2px 6px #ff8a3d) drop-shadow(0 0 12px #ff5e7a) drop-shadow(0 0 24px #ffcc4d); }
 }
 .tier-legend { animation: tier-legend-fire 1.2s ease-in-out infinite; }
+
+.exercise-stick {
+  position: relative;
+  width: 34px;
+  height: 42px;
+  color: #131313;
+}
+.exercise-stick span {
+  position: absolute;
+  display: block;
+  background: currentColor;
+}
+.exercise-stick .head {
+  left: 13px;
+  top: 1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+.exercise-stick .body {
+  left: 15px;
+  top: 10px;
+  width: 5px;
+  height: 17px;
+  border-radius: 999px;
+}
+.exercise-stick .arm,
+.exercise-stick .leg {
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  transform-origin: 50% 0;
+}
+.exercise-stick .arm-left { left: 15px; top: 12px; transform: rotate(68deg); }
+.exercise-stick .arm-right { left: 15px; top: 12px; transform: rotate(-68deg); }
+.exercise-stick .leg-left { left: 15px; top: 25px; transform: rotate(30deg); }
+.exercise-stick .leg-right { left: 15px; top: 25px; transform: rotate(-30deg); }
+.exercise-stick .bar {
+  left: 1px;
+  top: 11px;
+  width: 32px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ff0033;
+  box-shadow: -4px 0 0 #131313, 4px 0 0 #131313;
+}
+.exercise-stick-squat .body { top: 14px; transform: rotate(-12deg); }
+.exercise-stick-squat .arm-left { top: 11px; transform: rotate(82deg); }
+.exercise-stick-squat .arm-right { top: 11px; transform: rotate(-82deg); }
+.exercise-stick-squat .leg-left { top: 27px; transform: rotate(72deg); }
+.exercise-stick-squat .leg-right { top: 27px; transform: rotate(-34deg); }
+.exercise-stick-squat .bar { top: 12px; }
+.exercise-stick-curl .bar { top: 19px; width: 24px; left: 5px; }
+.exercise-stick-curl .arm-left { transform: rotate(36deg); }
+.exercise-stick-curl .arm-right { transform: rotate(-36deg); }
+.exercise-stick-press .bar { top: 0; }
+.exercise-stick-press .arm-left { top: 8px; transform: rotate(150deg); }
+.exercise-stick-press .arm-right { top: 8px; transform: rotate(-150deg); }
+.exercise-stick-pull .bar { top: 0; }
+.exercise-stick-pull .arm-left { top: 5px; transform: rotate(135deg); }
+.exercise-stick-pull .arm-right { top: 5px; transform: rotate(-135deg); }
+.exercise-stick-hinge .body { transform: rotate(35deg); }
+.exercise-stick-hinge .bar { top: 29px; }
+.exercise-stick-core .bar { display: none; }
+.exercise-stick-core { transform: rotate(90deg); }
+.exercise-stick-raise .bar { display: none; }
+.exercise-stick-raise .leg-left { transform: rotate(8deg); }
+.exercise-stick-raise .leg-right { transform: rotate(-8deg); }
