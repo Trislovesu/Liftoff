@@ -163,7 +163,7 @@ declare u public.users;
 begin
   perform public.app_rate_limit('login:ip:' || public.app_client_ip(), 30, 900);
   perform public.app_rate_limit('login:user:' || lower(trim(p_username)), 12, 900);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users where public.users.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.disabled_by_admin then raise exception 'Account disabled by admin'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
@@ -184,7 +184,7 @@ begin
      or jsonb_array_length(coalesce(p_state->'muscles', '[]'::jsonb)) > 20 then
     raise exception 'Invalid muscle data';
   end if;
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.disabled_by_admin then raise exception 'Account disabled by admin'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
@@ -218,7 +218,7 @@ begin
       else body_weight_updated_at
     end,
     featured_workout_id = nullif(left(coalesce(p_state->>'featuredWorkoutId', featured_workout_id), 80), ''),
-    featured_pr        = coalesce(p_state->'featuredPR', featured_pr),
+    featured_pr        = coalesce(p_state->'featuredPRs', p_state->'featuredPR', featured_pr),
     public_workouts    = case
       when jsonb_typeof(coalesce(p_state->'publicWorkouts', '[]'::jsonb)) = 'array'
        and jsonb_array_length(coalesce(p_state->'publicWorkouts', '[]'::jsonb)) <= 30
@@ -281,7 +281,7 @@ create or replace function public.app_save_pump_photo(
 declare u public.users; new_id uuid;
 begin
   perform public.app_rate_limit('pump:' || lower(trim(p_username)), 30, 3600);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   if p_image_url not like '%/storage/v1/object/public/user-content/pumps/' || u.username || '/%' then
@@ -317,7 +317,7 @@ create or replace function public.app_admin_update_gym_status(
 declare u public.users; g public.gym_status;
 begin
   perform public.app_rate_limit('admin-status:' || lower(trim(p_username)), 30, 900);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   if u.username <> 'tris' then raise exception 'Admin only'; end if;
@@ -347,7 +347,7 @@ create or replace function public.app_admin_list_users(
 declare u public.users;
 begin
   perform public.app_rate_limit('admin-users:' || lower(trim(p_username)), 20, 900);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   if u.username <> 'tris' then raise exception 'Admin only'; end if;
@@ -365,7 +365,7 @@ create or replace function public.app_admin_disable_user(
 declare u public.users; target public.users;
 begin
   perform public.app_rate_limit('admin-disable:' || lower(trim(p_username)), 20, 900);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   if u.username <> 'tris' then raise exception 'Admin only'; end if;
@@ -375,7 +375,7 @@ begin
     disabled_by_admin = true,
     admin_notice = 'Account disabled by admin',
     updated_at = now()
-  where username = lower(trim(p_target_username))
+  where public.users.username = lower(trim(p_target_username))
   returning * into target;
   if target.id is null then raise exception 'Target user not found'; end if;
   return jsonb_build_object('username', target.username, 'disabled_by_admin', target.disabled_by_admin);
@@ -387,7 +387,7 @@ create or replace function public.app_admin_reset_user_xp(
 declare u public.users; target public.users;
 begin
   perform public.app_rate_limit('admin-reset-xp:' || lower(trim(p_username)), 20, 900);
-  select * into u from public.users where username = lower(trim(p_username));
+  select * into u from public.users u0 where u0.username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   if u.username <> 'tris' then raise exception 'Admin only'; end if;
@@ -402,7 +402,7 @@ begin
     featured_pr = null,
     admin_notice = 'XP reset by admin',
     updated_at = now()
-  where username = lower(trim(p_target_username))
+  where public.users.username = lower(trim(p_target_username))
   returning * into target;
   if target.id is null then raise exception 'Target user not found'; end if;
   return jsonb_build_object('username', target.username, 'total_xp', target.total_xp, 'weekly_xp', target.weekly_xp);

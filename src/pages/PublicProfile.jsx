@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import Avatar from '../components/Avatar.jsx'
 import VerifiedName from '../components/VerifiedName.jsx'
+import { BIG_THREE_LIFTS } from '../store/AppContext.jsx'
 import { levelFromXP, rankFor } from '../lib/xp.js'
 import { rpcPublicProfile } from '../lib/supabase.js'
 
@@ -57,7 +58,7 @@ export default function PublicProfile() {
       </div>
       {profile.bodyWeightUpdatedAt && <div className="text-xs text-white/35 -mt-2 mb-4 text-center">Body weight changed {timeAgo(profile.bodyWeightUpdatedAt)}</div>}
 
-      <FeaturedPrCard pr={profile.featuredPR} />
+      <FeaturedPrGrid prs={profile.featuredPRs || {}} />
 
       <section className="glass-card p-4">
         <div className="flex items-center justify-between mb-3">
@@ -100,18 +101,23 @@ function toClientProfile(row) {
     zionVerified: row.zion_verified ?? false,
     bodyWeightLbs: row.body_weight_lbs ?? null,
     bodyWeightUpdatedAt: row.body_weight_updated_at ?? null,
-    featuredPR: row.featured_pr ?? null,
+    featuredPRs: row.featured_pr && !row.featured_pr.workoutId ? row.featured_pr : {},
     publicWorkouts: row.public_workouts ?? []
   }
 }
 
-function FeaturedPrCard({ pr }) {
-  if (!pr) return (
+function FeaturedPrGrid({ prs }) {
+  const items = BIG_THREE_LIFTS.map(lift => ({ lift, pr: prs[lift.key] })).filter(item => item.pr)
+  if (items.length === 0) return (
     <div className="glass-card p-4 mb-4">
-      <div className="metric-label text-accent mb-1">Featured PR</div>
+      <div className="metric-label text-accent mb-1">Featured PRs</div>
       <div className="text-sm text-white/45">No featured PR yet.</div>
     </div>
   )
+  return <div className="space-y-3 mb-4">{items.map(({ lift, pr }) => <FeaturedPrCard key={lift.key} pr={pr} />)}</div>
+}
+
+function FeaturedPrCard({ pr }) {
   const style = prStyle(pr.intensity)
   return (
     <div className={`glass-card p-4 mb-4 relative overflow-hidden ${style.className}`}>
@@ -120,7 +126,7 @@ function FeaturedPrCard({ pr }) {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <div className="metric-label text-accent mb-1">Featured PR</div>
-            <div className="font-extrabold text-xl">{pr.workoutName}</div>
+            <div className="font-extrabold text-xl">{pr.liftName || pr.workoutName}</div>
             <div className="text-xs text-white/45">{pr.exerciseName} · {timeAgo(pr.date)}</div>
           </div>
           {pr.tag && <span className="px-3 py-1 rounded-full bg-accent/15 border border-accent/40 text-accent text-xs font-extrabold">{pr.tag}</span>}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import Avatar from './Avatar.jsx'
 import { useApp } from '../store/AppContext.jsx'
 import VerifiedName from './VerifiedName.jsx'
@@ -217,15 +218,17 @@ export default function AppTopBar({ user }) {
           )}
         </div>
       </div>
-      {messageAlert && (
-        <StatusMessageAlert
-          status={messageAlert}
-          onClose={() => {
-            if (messageAlert.updated_at) localStorage.setItem(SEEN_MESSAGE_KEY, messageAlert.updated_at)
-            setMessageAlert(null)
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {messageAlert && (
+          <StatusMessageAlert
+            status={messageAlert}
+            onClose={() => {
+              if (messageAlert.updated_at) localStorage.setItem(SEEN_MESSAGE_KEY, messageAlert.updated_at)
+              setMessageAlert(null)
+            }}
+          />
+        )}
+      </AnimatePresence>
       {user.adminNotice && (
         <AdminNoticeAlert
           message={user.adminNotice}
@@ -259,8 +262,15 @@ function AdminNoticeAlert({ message, onClose }) {
 
 function StatusMessageAlert({ status, onClose }) {
   return (
-    <div className="fixed inset-x-0 top-20 z-[60] px-4 pointer-events-none">
-      <div className="max-w-md mx-auto glass-card border-accent/40 p-4 rounded-3xl shadow-[0_18px_60px_rgba(0,0,0,0.6),0_0_28px_rgba(255,0,51,0.18)] pointer-events-auto">
+    <motion.div
+      initial={{ opacity: 0, y: -14, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.98 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className="fixed inset-x-0 top-20 z-[60] px-4 pointer-events-none"
+    >
+      <div className="relative max-w-md mx-auto bg-bg-950 border border-accent/45 p-4 rounded-3xl shadow-[0_18px_60px_rgba(0,0,0,0.72),0_0_30px_rgba(255,0,51,0.22)] pointer-events-auto">
+        <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-accent/70 to-transparent" />
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-2xl bg-accent/15 border border-accent/35 flex items-center justify-center text-accent shrink-0">
             <span className="material-symbols-outlined text-xl">priority_high</span>
@@ -274,7 +284,7 @@ function StatusMessageAlert({ status, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

@@ -16,6 +16,7 @@ import WorkoutHistoryDetail from './pages/WorkoutHistoryDetail.jsx'
 import Login from './pages/Login.jsx'
 import AppTopBar from './components/AppTopBar.jsx'
 import SignupOnboarding from './components/SignupOnboarding.jsx'
+import ActiveWorkoutLayer from './components/ActiveWorkoutLayer.jsx'
 
 export default function App() {
   const { state, dispatch } = useApp()
@@ -61,6 +62,7 @@ export default function App() {
           </motion.div>
         )}
       </div>
+      {state.status === 'authed' && !state.user?.needsOnboarding && !showIntro && <ActiveWorkoutLayer />}
       {state.status === 'authed' && !state.user?.needsOnboarding && !showIntro && <BottomNav />}
     </div>
   )

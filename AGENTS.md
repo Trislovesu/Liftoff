@@ -64,6 +64,7 @@ D:\Liftit\
     │   └── AppContext.jsx          THE store — useReducer + actions. SINGLE seam between UI and Supabase.
     ├── components/
     │   ├── Avatar.jsx              universal avatar: URL → emoji → initial fallback
+    │   ├── ActiveWorkoutLayer.jsx  active workout guard + background progress banner
     │   ├── AppTopBar.jsx           fixed Stitch-style top brand bar with avatar + glowing Z gym status/admin popover + global update alert
     │   ├── BodyHeaderStats.jsx     compact top bar on Body page (avatar, level, 🏋️ workouts, ⚡ weekly XP)
     │   ├── SignupOnboarding.jsx    post-signup animated avatar/emoji + gym/home setup flow
@@ -110,8 +111,8 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
   profilePicUrl,            // URL (Supabase storage) OR emoji char OR null
   gymType,                  // 'gym', 'home', or null from signup onboarding
   bodyWeightLbs, bodyWeightUpdatedAt,
-  featuredWorkoutId,
-  featuredPR,               // latest top set for the selected featured routine
+  featuredLiftKeys,         // selected Big 3 lifts: bench, squat, deadlift
+  featuredPRs,              // per-lift featured PR cards for Bench Press, Squat, Deadlift
   publicWorkouts,           // sanitized public routine snapshots for viewed profiles
   zionMemberCode, zionVerified,
   adminNotice               // e.g. "XP reset by admin"; shown then cleared client-side
@@ -254,7 +255,7 @@ git push
 | File | Purpose |
 |---|---|
 | `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard; includes Dianna-only login intro before entering the app. |
-| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts, featured PR), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, setBodyWeight, setFeaturedWorkout, setZionMemberCode, clearAdminNotice, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
+| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts, Big 3 featured PRs), active workout state, `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, setBodyWeight, setFeaturedLiftKeys, setZionMemberCode, clearAdminNotice, saveWorkout, deleteWorkout, logWorkout, startActiveWorkout, patchActiveWorkout, endActiveWorkout }`. Debounced cloud sync via `rpcSaveState`. |
 | `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status and leaderboard realtime subscription/broadcast helpers, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional exercise media cache reader, keyed by exercise name in LocalStorage. No direct paid API calls from the browser. |
@@ -264,6 +265,7 @@ git push
 | `lib/exifDate.js` | `readPhotoTakenAt` + `checkPhotoIsRecent` (uses funny rejections). |
 | `lib/funnyRejects.js` | `funnyOldPhotoReject(ageMs)`, `randomCompliment()`, `lastTimeNudge(weight, reps)`. |
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
+| `components/ActiveWorkoutLayer.jsx` | Global active-workout guard. Prompts once before leaving an active logger, can run workout in background, and shows a top progress banner that returns to the logger. |
 | `components/VerifiedName.jsx` | Username + glowing verified tick shown when `zionVerified` is true. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`; admin update messages appear as a themed on-screen alert outside the Z panel. |
 | `components/SignupOnboarding.jsx` | Animated post-signup flow: upload photo or choose emoji, then choose Gym/Home training setup. |
@@ -280,6 +282,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.
 - **Admin + verified + dashboard cleanup:** admin panel now shows RPC errors, lists account rows, can soft-disable users and reset XP. Disabled users get `Account disabled by admin` on login; reset users see `XP reset by admin`, and stale local sync cannot restore reset XP. Signup onboarding and Profile now accept an optional 5 digit Zion Fitness House code and show a glowing verified tick beside usernames. Dashboard replaced Muscle Fatigue with a collapsible Recent Muscles Trained section and removed the pro-advice panel.
 - **Public profiles + PR upgrades:** leaderboard rows now open `/u/:username` public profiles. Users can set body weight during onboarding and edit it in Profile with a timestamp. Routine builder has a Public/Private toggle; only public routine snapshots show on viewed profiles. Users can choose a featured routine, and the next logged top set for that routine becomes the profile PR card with `NEW`/heavier-than-last-time tags and intensity-based border animation. Workout logger weight/reps inputs now use numeric text fields without spinner controls. Gym status alerts auto-dismiss after 5 seconds.
 - **Security/env hardening:** Supabase URL/anon key moved out of source into Vite env vars and GitHub Actions secrets. Added CSP in `index.html`, broadened `.gitignore` for env files, added `.env.example`, moved `pin_hash` session storage from LocalStorage to sessionStorage, disabled direct browser WorkoutX API calls, made gym-status broadcasts refresh from the database instead of trusting client payloads, and added Supabase RPC rate limits + stricter image storage policies.

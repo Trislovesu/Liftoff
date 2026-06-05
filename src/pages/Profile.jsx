@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useApp } from '../store/AppContext.jsx'
+import { BIG_THREE_LIFTS, useApp } from '../store/AppContext.jsx'
 import Header from '../components/Header.jsx'
 import { levelFromXP, rankFor } from '../lib/xp.js'
 import XPProgressBar from '../components/XPProgressBar.jsx'
@@ -106,23 +106,32 @@ export default function Profile() {
         </div>
       </div>
 
-      <FeaturedPrCard pr={user.featuredPR} />
+      <FeaturedPrGrid prs={user.featuredPRs || {}} />
 
       <div className="glass-card p-4 mb-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-white/60">Featured PR</h2>
-            <div className="text-xs text-white/35">Pick a routine. Your next logged top set becomes the profile highlight.</div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-white/60">Featured PRs</h2>
+            <div className="text-xs text-white/35">Choose any Big 3 lifts to show on your profile.</div>
           </div>
         </div>
-        <select
-          value={user.featuredWorkoutId || ''}
-          onChange={e => actions.setFeaturedWorkout(e.target.value || null)}
-          className="input w-full"
-        >
-          <option value="">No featured routine</option>
-          {state.workouts.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
+        <div className="grid grid-cols-3 gap-2">
+          {BIG_THREE_LIFTS.map(lift => {
+            const active = (user.featuredLiftKeys || []).includes(lift.key)
+            return (
+              <button
+                key={lift.key}
+                onClick={() => {
+                  const current = user.featuredLiftKeys || []
+                  actions.setFeaturedLiftKeys(active ? current.filter(key => key !== lift.key) : [...current, lift.key])
+                }}
+                className={`rounded-2xl border px-3 py-3 text-xs font-extrabold transition ${active ? 'bg-accent/15 border-accent/50 text-accent shadow-[0_0_14px_rgba(255,0,51,0.16)]' : 'bg-white/[0.03] border-white/10 text-white/45'}`}
+              >
+                {lift.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="card p-3">
@@ -237,15 +246,20 @@ export default function Profile() {
   )
 }
 
-function FeaturedPrCard({ pr }) {
-  if (!pr) {
+function FeaturedPrGrid({ prs }) {
+  const items = BIG_THREE_LIFTS.map(lift => ({ lift, pr: prs[lift.key] })).filter(item => item.pr)
+  if (items.length === 0) {
     return (
       <div className="glass-card p-4 mb-4 border-white/10">
-        <div className="metric-label text-accent mb-1">Featured PR</div>
-        <div className="text-sm text-white/45">Choose a routine and log it to show a PR here.</div>
+        <div className="metric-label text-accent mb-1">Featured PRs</div>
+        <div className="text-sm text-white/45">Choose Bench Press, Squat, or Deadlift and log it to show PRs here.</div>
       </div>
     )
   }
+  return <div className="space-y-3 mb-4">{items.map(({ lift, pr }) => <FeaturedPrCard key={lift.key} pr={pr} />)}</div>
+}
+
+function FeaturedPrCard({ pr }) {
   const style = prStyle(pr.intensity)
   return (
     <div className={`glass-card p-4 mb-4 relative overflow-hidden ${style.className}`}>
@@ -254,7 +268,7 @@ function FeaturedPrCard({ pr }) {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <div className="metric-label text-accent mb-1">Featured PR</div>
-            <div className="font-extrabold text-xl">{pr.workoutName}</div>
+            <div className="font-extrabold text-xl">{pr.liftName || pr.workoutName}</div>
             <div className="text-xs text-white/45">{pr.exerciseName} · {timeAgo(pr.date)}</div>
           </div>
           {pr.tag && <span className="px-3 py-1 rounded-full bg-accent/15 border border-accent/40 text-accent text-xs font-extrabold">{pr.tag}</span>}

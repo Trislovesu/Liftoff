@@ -22,15 +22,33 @@ export default function WorkoutLogger() {
   const { state, actions } = useApp()
   const navigate = useNavigate()
   const workout = state.workouts.find(w => w.id === id)
-  const [logged, setLogged] = useState(() => workout ? buildInitial(workout) : [])
+  const [logged, setLogged] = useState(() => (
+    state.activeWorkout?.workoutId === id ? state.activeWorkout.logged : (workout ? buildInitial(workout) : [])
+  ))
   const [elapsed, setElapsed] = useState(0)
   const [finished, setFinished] = useState(null)
 
   useEffect(() => {
-    const start = Date.now()
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    if (!workout) return
+    if (state.activeWorkout?.workoutId !== id) {
+      actions.startActiveWorkout(id, buildInitial(workout))
+    } else if (state.activeWorkout.background) {
+      actions.patchActiveWorkout({ background: false })
+    }
+  }, [id, workout?.id])
+
+  useEffect(() => {
+    if (!state.activeWorkout?.startedAt || state.activeWorkout.workoutId !== id) return
+    const update = () => setElapsed(Math.floor((Date.now() - state.activeWorkout.startedAt) / 1000))
+    update()
+    const t = setInterval(update, 1000)
     return () => clearInterval(t)
-  }, [])
+  }, [id, state.activeWorkout?.startedAt, state.activeWorkout?.workoutId])
+
+  useEffect(() => {
+    if (state.activeWorkout?.workoutId !== id) return
+    actions.patchActiveWorkout({ logged })
+  }, [logged, id])
 
   const liveXP = useMemo(() => {
     let xp = 0
