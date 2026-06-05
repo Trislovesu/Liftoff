@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../store/AppContext.jsx'
 import Header from '../components/Header.jsx'
 import Avatar from '../components/Avatar.jsx'
+import VerifiedName from '../components/VerifiedName.jsx'
 import { rankFor, rankIndex, levelFromXP } from '../lib/xp.js'
 import { rpcLeaderboard, subscribeToLeaderboardUpdates } from '../lib/supabase.js'
 
@@ -58,6 +60,7 @@ export default function Leaderboard() {
       weeklyXP: r.weekly_xp,
       totalWorkouts: r.total_workouts,
       profilePicUrl: r.profile_pic_url,
+      zionVerified: r.zion_verified,
       strongestMuscle: strongestFromMuscles(r.muscles)
     }))
     if (mode === 'weekly') arr.sort((a, b) => b.weeklyXP - a.weeklyXP || b.totalXP - a.totalXP)
@@ -94,7 +97,8 @@ export default function Leaderboard() {
             const lvl = levelFromXP(u.totalXP).level
             const xpValue = mode === 'weekly' ? u.weeklyXP : u.totalXP
             return (
-              <div key={u.username + i}
+              <Link key={u.username + i}
+                to={`/u/${u.username}`}
                 className={`card p-3 flex items-center gap-3 ${isYou ? 'border-accent/60 shadow-glow' : ''}`}
                 style={isYou ? { background: 'linear-gradient(135deg, rgba(170,170,170,0.18), rgba(56,225,176,0.06))' } : undefined}>
                 <div className={`w-6 text-center font-extrabold ${i < 3 ? 'text-gold' : 'text-white/40'}`}>
@@ -103,7 +107,7 @@ export default function Leaderboard() {
                 <Avatar user={u} size={40} ring={rank.color} />
                 <div className="min-w-0 flex-1">
                   <div className="font-bold truncate flex items-center gap-2">
-                    {u.username}
+                    <VerifiedName user={u} className="min-w-0" />
                     {isYou && <span className="chip bg-accent/20 border-accent/50 text-accent">You</span>}
                   </div>
                   <div className="text-xs truncate" style={{ color: rank.color }}>
@@ -117,7 +121,7 @@ export default function Leaderboard() {
                     {mode === 'weekly' ? 'Weekly' : mode === 'rank' ? 'Total' : 'Total'} XP
                   </div>
                 </div>
-              </div>
+              </Link>
             )
           })}
           {sorted.length === 0 && (

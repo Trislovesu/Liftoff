@@ -50,6 +50,13 @@ export async function rpcLeaderboard() {
   return data || []
 }
 
+export async function rpcPublicProfile(username) {
+  const { data, error } = await supabase.rpc('app_public_profile', { p_username: username })
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Profile not found')
+  return data
+}
+
 export async function rpcSavePumpPhoto(username, pin_hash, { image_url, taken_at, caption, xp_bonus }) {
   const { data, error } = await supabase.rpc('app_save_pump_photo', {
     p_username: username, p_pin_hash: pin_hash,
@@ -185,6 +192,26 @@ export async function rpcAdminListUsers(username, pin_hash) {
   })
   if (error) throw new Error(error.message)
   return data || []
+}
+
+export async function rpcAdminDisableUser(username, pin_hash, targetUsername) {
+  const { data, error } = await supabase.rpc('app_admin_disable_user', {
+    p_username: username,
+    p_pin_hash: pin_hash,
+    p_target_username: targetUsername
+  })
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function rpcAdminResetUserXP(username, pin_hash, targetUsername) {
+  const { data, error } = await supabase.rpc('app_admin_reset_user_xp', {
+    p_username: username,
+    p_pin_hash: pin_hash,
+    p_target_username: targetUsername
+  })
+  if (error) throw new Error(error.message)
+  return data
 }
 
 // ─── Storage helpers ───────────────────────────────────────────────────

@@ -21,6 +21,15 @@ alter table public.users add column if not exists total_workouts int not null de
 alter table public.users add column if not exists profile_pic_url text;
 alter table public.users add column if not exists last_sessions jsonb not null default '{}'::jsonb;
 alter table public.users add column if not exists gym_type text;
+alter table public.users add column if not exists body_weight_lbs int;
+alter table public.users add column if not exists body_weight_updated_at timestamptz;
+alter table public.users add column if not exists featured_workout_id text;
+alter table public.users add column if not exists featured_pr jsonb;
+alter table public.users add column if not exists public_workouts jsonb not null default '[]'::jsonb;
+alter table public.users add column if not exists zion_member_code text;
+alter table public.users add column if not exists zion_verified boolean not null default false;
+alter table public.users add column if not exists disabled_by_admin boolean not null default false;
+alter table public.users add column if not exists admin_notice text;
 
 create table if not exists public.pump_photos (
   id uuid primary key default gen_random_uuid(),
@@ -156,6 +165,7 @@ begin
   perform public.app_rate_limit('login:user:' || lower(trim(p_username)), 12, 900);
   select * into u from public.users where username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
+  if u.disabled_by_admin then raise exception 'Account disabled by admin'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   return to_jsonb(u) - 'pin_hash';
 end; $$;
@@ -176,19 +186,57 @@ begin
   end if;
   select * into u from public.users where username = lower(trim(p_username));
   if u.id is null then raise exception 'User not found'; end if;
+  if u.disabled_by_admin then raise exception 'Account disabled by admin'; end if;
   if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
   update public.users set
-    total_xp           = least(5000000, greatest(0, coalesce((p_state->>'totalXP')::int, total_xp))),
-    weekly_xp          = least(500000, greatest(0, coalesce((p_state->>'weeklyXP')::int, weekly_xp))),
+    total_xp           = case
+      when admin_notice = 'XP reset by admin' then total_xp
+      else least(5000000, greatest(0, coalesce((p_state->>'totalXP')::int, total_xp)))
+    end,
+    weekly_xp          = case
+      when admin_notice = 'XP reset by admin' then weekly_xp
+      else least(500000, greatest(0, coalesce((p_state->>'weeklyXP')::int, weekly_xp)))
+    end,
     week_start         = coalesce((p_state->>'weekStart')::timestamptz, week_start),
     streak             = coalesce((p_state->>'streak')::int, streak),
     last_workout_date  = nullif(p_state->>'lastWorkoutDate','')::date,
-    muscles            = coalesce(p_state->'muscles', muscles),
+    muscles            = case
+      when admin_notice = 'XP reset by admin' then muscles
+      else coalesce(p_state->'muscles', muscles)
+    end,
     personal_bests     = coalesce(p_state->'personalBests', personal_bests),
     last_sessions      = coalesce(p_state->'lastSessions', last_sessions),
     total_workouts     = least(10000, greatest(0, coalesce((p_state->>'totalWorkouts')::int, total_workouts))),
     profile_pic_url    = nullif(left(coalesce(p_state->>'profilePicUrl', profile_pic_url), 500), ''),
     gym_type           = coalesce(nullif(p_state->>'gymType', ''), gym_type),
+    body_weight_lbs    = case
+      when p_state ? 'bodyWeightLbs' then least(999, greatest(0, nullif(p_state->>'bodyWeightLbs', '')::int))
+      else body_weight_lbs
+    end,
+    body_weight_updated_at = case
+      when p_state ? 'bodyWeightUpdatedAt' then nullif(p_state->>'bodyWeightUpdatedAt', '')::timestamptz
+      else body_weight_updated_at
+    end,
+    featured_workout_id = nullif(left(coalesce(p_state->>'featuredWorkoutId', featured_workout_id), 80), ''),
+    featured_pr        = coalesce(p_state->'featuredPR', featured_pr),
+    public_workouts    = case
+      when jsonb_typeof(coalesce(p_state->'publicWorkouts', '[]'::jsonb)) = 'array'
+       and jsonb_array_length(coalesce(p_state->'publicWorkouts', '[]'::jsonb)) <= 30
+      then coalesce(p_state->'publicWorkouts', public_workouts)
+      else public_workouts
+    end,
+    zion_member_code = case
+      when p_state ? 'zionMemberCode' and coalesce(p_state->>'zionMemberCode', '') ~ '^[0-9]{5}$' then p_state->>'zionMemberCode'
+      else zion_member_code
+    end,
+    zion_verified = case
+      when p_state ? 'zionMemberCode' and coalesce(p_state->>'zionMemberCode', '') ~ '^[0-9]{5}$' then true
+      else zion_verified
+    end,
+    admin_notice = case
+      when p_state ? 'adminNotice' then nullif(p_state->>'adminNotice', '')
+      else admin_notice
+    end,
     updated_at         = now()
   where username = lower(trim(p_username))
   returning * into u;
@@ -199,10 +247,30 @@ end; $$;
 create or replace function public.app_leaderboard()
 returns table (
   username text, total_xp int, weekly_xp int, streak int,
-  total_workouts int, profile_pic_url text, muscles jsonb
+  total_workouts int, profile_pic_url text, muscles jsonb, zion_verified boolean
 ) language sql security definer set search_path = public as $$
-  select username, total_xp, weekly_xp, streak, total_workouts, profile_pic_url, muscles
-  from public.users order by total_xp desc limit 100;
+  select username, total_xp, weekly_xp, streak, total_workouts, profile_pic_url, muscles, zion_verified
+  from public.users where disabled_by_admin = false order by total_xp desc limit 100;
+$$;
+
+create or replace function public.app_public_profile(p_username text)
+returns jsonb language sql security definer set search_path = public as $$
+  select jsonb_build_object(
+    'username', username,
+    'total_xp', total_xp,
+    'weekly_xp', weekly_xp,
+    'total_workouts', total_workouts,
+    'profile_pic_url', profile_pic_url,
+    'muscles', muscles,
+    'body_weight_lbs', body_weight_lbs,
+    'body_weight_updated_at', body_weight_updated_at,
+    'featured_workout_id', featured_workout_id,
+    'featured_pr', featured_pr,
+    'public_workouts', public_workouts,
+    'zion_verified', zion_verified
+  )
+  from public.users
+  where username = lower(trim(p_username));
 $$;
 
 -- ---------- RPC: pump photos ----------
@@ -274,7 +342,7 @@ create or replace function public.app_admin_list_users(
   p_username text, p_pin_hash text
 ) returns table (
   username text, total_xp int, weekly_xp int, total_workouts int,
-  profile_pic_url text, created_at timestamptz
+  profile_pic_url text, created_at timestamptz, zion_verified boolean, disabled_by_admin boolean
 ) language plpgsql security definer set search_path = public as $$
 declare u public.users;
 begin
@@ -286,9 +354,58 @@ begin
 
   return query
     select u2.username, u2.total_xp, u2.weekly_xp, u2.total_workouts,
-           u2.profile_pic_url, u2.created_at
+           u2.profile_pic_url, u2.created_at, u2.zion_verified, u2.disabled_by_admin
     from public.users u2
     order by u2.created_at desc;
+end; $$;
+
+create or replace function public.app_admin_disable_user(
+  p_username text, p_pin_hash text, p_target_username text
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u public.users; target public.users;
+begin
+  perform public.app_rate_limit('admin-disable:' || lower(trim(p_username)), 20, 900);
+  select * into u from public.users where username = lower(trim(p_username));
+  if u.id is null then raise exception 'User not found'; end if;
+  if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
+  if u.username <> 'tris' then raise exception 'Admin only'; end if;
+  if lower(trim(p_target_username)) = 'tris' then raise exception 'Cannot disable admin'; end if;
+
+  update public.users set
+    disabled_by_admin = true,
+    admin_notice = 'Account disabled by admin',
+    updated_at = now()
+  where username = lower(trim(p_target_username))
+  returning * into target;
+  if target.id is null then raise exception 'Target user not found'; end if;
+  return jsonb_build_object('username', target.username, 'disabled_by_admin', target.disabled_by_admin);
+end; $$;
+
+create or replace function public.app_admin_reset_user_xp(
+  p_username text, p_pin_hash text, p_target_username text
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u public.users; target public.users;
+begin
+  perform public.app_rate_limit('admin-reset-xp:' || lower(trim(p_username)), 20, 900);
+  select * into u from public.users where username = lower(trim(p_username));
+  if u.id is null then raise exception 'User not found'; end if;
+  if u.pin_hash <> p_pin_hash then raise exception 'Invalid PIN'; end if;
+  if u.username <> 'tris' then raise exception 'Admin only'; end if;
+
+  update public.users set
+    total_xp = 0,
+    weekly_xp = 0,
+    muscles = (
+      select coalesce(jsonb_agg(jsonb_set(jsonb_set(m.value, '{level}', '0'::jsonb), '{xp}', '0'::jsonb)), '[]'::jsonb)
+      from jsonb_array_elements(public.users.muscles) as m(value)
+    ),
+    featured_pr = null,
+    admin_notice = 'XP reset by admin',
+    updated_at = now()
+  where username = lower(trim(p_target_username))
+  returning * into target;
+  if target.id is null then raise exception 'Target user not found'; end if;
+  return jsonb_build_object('username', target.username, 'total_xp', target.total_xp, 'weekly_xp', target.weekly_xp);
 end; $$;
 
 -- Lock + grant
@@ -303,11 +420,14 @@ grant execute on function public.app_signup(text, text, jsonb) to anon, authenti
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_save_state(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_leaderboard() to anon, authenticated;
+grant execute on function public.app_public_profile(text) to anon, authenticated;
 grant execute on function public.app_save_pump_photo(text, text, text, timestamptz, text, int) to anon, authenticated;
 grant execute on function public.app_get_pump_photos(text) to anon, authenticated;
 grant execute on function public.app_get_gym_status() to anon, authenticated;
 grant execute on function public.app_admin_update_gym_status(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_admin_list_users(text, text) to anon, authenticated;
+grant execute on function public.app_admin_disable_user(text, text, text) to anon, authenticated;
+grant execute on function public.app_admin_reset_user_xp(text, text, text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
 

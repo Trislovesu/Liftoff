@@ -12,6 +12,90 @@ const LOCAL_KEY   = 'liftit.local.v1'
 
 function cid() { return 'id_' + Math.random().toString(36).slice(2, 10) }
 
+function publicWorkoutsFrom(workouts = []) {
+  return workouts
+    .filter(w => w.isPublic)
+    .slice(0, 30)
+    .map(w => ({
+      id: w.id,
+      name: w.name,
+      targetMuscles: w.targetMuscles || [],
+      exercises: (w.exercises || []).slice(0, 20).map(ex => ({
+        name: ex.name,
+        primaryMuscle: ex.primaryMuscle,
+        secondaryMuscles: ex.secondaryMuscles || [],
+        sets: Number(ex.sets) || 0,
+        reps: Number(ex.reps) || 0,
+        weight: Number(ex.weight) || 0
+      }))
+    }))
+}
+
+function topCompletedSet(loggedExercises = []) {
+  let top = null
+  for (const ex of loggedExercises) {
+    for (const set of ex.sets || []) {
+      if (!set.completed) continue
+      const weight = Number(set.weight) || 0
+      const reps = Number(set.reps) || 0
+      const score = weight * Math.max(1, reps)
+      if (!top || score > top.score) {
+        top = { exerciseName: ex.name, weight, reps, score }
+      }
+    }
+  }
+  return top
+}
+
+function latestWorkoutTopSet(history = [], workoutId) {
+  const previous = history.find(h => h.workoutId === workoutId)
+  if (!previous) return null
+  return topSetFromEntry(previous)
+}
+
+function topSetFromEntry(entry) {
+  let top = null
+  for (const ex of entry.exercises || []) {
+    for (const set of ex.sets || []) {
+      const weight = Number(set.weight) || 0
+      const reps = Number(set.reps) || 0
+      const score = weight * Math.max(1, reps)
+      if (!top || score > top.score) top = { exerciseName: ex.name, weight, reps, score }
+    }
+  }
+  return top
+}
+
+function featuredPrFromHistory(history = [], workouts = [], workoutId) {
+  if (!workoutId) return null
+  const entries = history.filter(h => h.workoutId === workoutId)
+  const latest = entries[0]
+  if (!latest) return null
+  const topSet = topSetFromEntry(latest)
+  if (!topSet) return null
+  const previousTop = entries[1] ? topSetFromEntry(entries[1]) : null
+  const delta = previousTop ? topSet.weight - previousTop.weight : null
+  return {
+    workoutId,
+    workoutName: latest.workoutName || workouts.find(w => w.id === workoutId)?.name || 'Workout',
+    exerciseName: topSet.exerciseName,
+    weight: topSet.weight,
+    reps: topSet.reps,
+    delta: previousTop ? Math.max(0, delta || 0) : null,
+    tag: previousTop ? ((delta || 0) > 0 ? `+${delta} lbs` : '') : 'NEW',
+    intensity: prIntensity(topSet.weight, topSet.reps),
+    date: latest.date || new Date().toISOString()
+  }
+}
+
+function prIntensity(weight = 0, reps = 0) {
+  const score = Number(weight) * Math.max(1, Number(reps))
+  if (score >= 2500) return 'legend'
+  if (score >= 1500) return 'heavy'
+  if (score >= 750) return 'strong'
+  return 'calm'
+}
+
 const sampleWorkouts = () => ([
   { id: 'w-push', name: 'Push Day', targetMuscles: ['Chest','Triceps','Shoulders'],
     exercises: [
@@ -94,6 +178,7 @@ function reducer(state, action) {
       const user = rolloverWeekIfNeeded(action.user)
       // Backfill totalWorkouts from local history for older users
       if (!user.totalWorkouts && local.history?.length) user.totalWorkouts = local.history.length
+      user.publicWorkouts = publicWorkoutsFrom(local.workouts)
       if (action.isNew) user.needsOnboarding = true
       const intro = action.justLoggedIn && isDiannaProfile(user.username) ? 'dianna' : null
       return { status: 'authed', session: action.session, user, workouts: local.workouts, history: local.history, intro }
@@ -103,15 +188,27 @@ function reducer(state, action) {
       return { ...state, status: 'unauthed', session: null, user: null, workouts: [], history: [], intro: null }
 
     case 'SAVE_WORKOUT': {
-      const w = action.workout
+      const w = { ...action.workout, isPublic: !!action.workout.isPublic }
       const existing = state.workouts.findIndex(x => x.id === w.id)
       const next = [...state.workouts]
       if (existing >= 0) next[existing] = w; else next.unshift(w)
-      return { ...state, workouts: next }
+      return { ...state, workouts: next, user: { ...state.user, publicWorkouts: publicWorkoutsFrom(next) } }
     }
 
     case 'DELETE_WORKOUT':
-      return { ...state, workouts: state.workouts.filter(w => w.id !== action.id) }
+      {
+        const next = state.workouts.filter(w => w.id !== action.id)
+        return {
+          ...state,
+          workouts: next,
+          user: {
+            ...state.user,
+            publicWorkouts: publicWorkoutsFrom(next),
+            featuredWorkoutId: state.user.featuredWorkoutId === action.id ? null : state.user.featuredWorkoutId,
+            featuredPR: state.user.featuredWorkoutId === action.id ? null : state.user.featuredPR
+          }
+        }
+      }
 
     case 'LOG_WORKOUT': {
       const { workoutId, loggedExercises, durationSec, pumpPicBonus } = action
@@ -166,6 +263,9 @@ function reducer(state, action) {
       const completionBonus = WORKOUT_COMPLETION_BONUS
       const picBonus = pumpPicBonus ? PUMP_PIC_BONUS : 0
       const totalXP = workoutXP + completionBonus + picBonus
+      const topSet = topCompletedSet(loggedExercises)
+      const previousTop = latestWorkoutTopSet(state.history, workoutId)
+      const delta = topSet && previousTop ? topSet.weight - previousTop.weight : null
 
       const muscles = user.muscles.map(m => muscleGain[m.name] ? applyMuscleXP(m, muscleGain[m.name]) : m)
 
@@ -174,6 +274,20 @@ function reducer(state, action) {
         totalXP: user.totalXP + totalXP,
         weeklyXP: user.weeklyXP + totalXP,
         totalWorkouts: (user.totalWorkouts || 0) + 1
+      }
+
+      if (user.featuredWorkoutId === workoutId && topSet) {
+        user.featuredPR = {
+          workoutId,
+          workoutName: workout.name,
+          exerciseName: topSet.exerciseName,
+          weight: topSet.weight,
+          reps: topSet.reps,
+          delta: previousTop ? Math.max(0, delta || 0) : null,
+          tag: previousTop ? ((delta || 0) > 0 ? `+${delta} lbs` : '') : 'NEW',
+          intensity: prIntensity(topSet.weight, topSet.reps),
+          date: new Date().toISOString()
+        }
       }
 
       const entry = {
@@ -271,16 +385,41 @@ export function AppProvider({ children }) {
     dispatch({ type: 'PATCH_USER', patch: { ...patch, needsOnboarding: false } })
   }, [])
 
+  const setBodyWeight = useCallback((bodyWeightLbs) => {
+    const value = Number(bodyWeightLbs) || 0
+    dispatch({ type: 'PATCH_USER', patch: { bodyWeightLbs: value, bodyWeightUpdatedAt: new Date().toISOString() } })
+  }, [])
+
+  const setFeaturedWorkout = useCallback((featuredWorkoutId) => {
+    dispatch({
+      type: 'PATCH_USER',
+      patch: {
+        featuredWorkoutId,
+        featuredPR: featuredPrFromHistory(state.history, state.workouts, featuredWorkoutId)
+      }
+    })
+  }, [state.history, state.workouts])
+
+  const setZionMemberCode = useCallback((zionMemberCode) => {
+    const code = String(zionMemberCode || '').replace(/\D/g, '').slice(0, 5)
+    if (code.length !== 5) throw new Error('Enter a 5 digit Zion Fitness House code')
+    dispatch({ type: 'PATCH_USER', patch: { zionMemberCode: code, zionVerified: true } })
+  }, [])
+
+  const clearAdminNotice = useCallback(() => {
+    dispatch({ type: 'PATCH_USER', patch: { adminNotice: null } })
+  }, [])
+
   const value = useMemo(() => ({
     state, dispatch,
     actions: {
-      signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding,
+      signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedWorkout, setZionMemberCode, clearAdminNotice,
       saveWorkout: (w) => dispatch({ type: 'SAVE_WORKOUT', workout: w }),
       deleteWorkout: (id) => dispatch({ type: 'DELETE_WORKOUT', id }),
       logWorkout: ({ workoutId, loggedExercises, durationSec, pumpPicBonus }) =>
         dispatch({ type: 'LOG_WORKOUT', workoutId, loggedExercises, durationSec, pumpPicBonus })
     }
-  }), [state, signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding])
+  }), [state, signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedWorkout, setZionMemberCode, clearAdminNotice])
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }
@@ -298,7 +437,15 @@ function rpcUserToClient(row) {
     lastSessions: row.last_sessions ?? {},
     totalWorkouts: row.total_workouts ?? 0,
     profilePicUrl: row.profile_pic_url ?? null,
-    gymType: row.gym_type ?? null
+    gymType: row.gym_type ?? null,
+    bodyWeightLbs: row.body_weight_lbs ?? null,
+    bodyWeightUpdatedAt: row.body_weight_updated_at ?? null,
+    featuredWorkoutId: row.featured_workout_id ?? null,
+    featuredPR: row.featured_pr ?? null,
+    publicWorkouts: row.public_workouts ?? [],
+    zionMemberCode: row.zion_member_code ?? null,
+    zionVerified: row.zion_verified ?? false,
+    adminNotice: row.admin_notice ?? null
   }
 }
 

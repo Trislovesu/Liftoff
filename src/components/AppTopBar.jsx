@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar.jsx'
 import { useApp } from '../store/AppContext.jsx'
-import { broadcastGymStatus, rpcAdminListUsers, rpcAdminUpdateGymStatus, rpcGetGymStatus, subscribeToGymStatus } from '../lib/supabase.js'
+import VerifiedName from './VerifiedName.jsx'
+import { broadcastGymStatus, rpcAdminDisableUser, rpcAdminListUsers, rpcAdminResetUserXP, rpcAdminUpdateGymStatus, rpcGetGymStatus, subscribeToGymStatus } from '../lib/supabase.js'
 import { DEFAULT_GYM_STATUS, GYM_LOCATIONS, normalizeGymStatus, STATUS_OPTIONS, statusMeta } from '../lib/gymStatus.js'
 
 const SEEN_STATUS_KEY = 'liftit.gymStatusSeen.v1'
@@ -13,12 +14,14 @@ function isAdminUser(user) {
 }
 
 export default function AppTopBar({ user }) {
-  const { state } = useApp()
+  const { state, actions } = useApp()
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(DEFAULT_GYM_STATUS)
   const [notice, setNotice] = useState(false)
   const [messageAlert, setMessageAlert] = useState(null)
   const [accounts, setAccounts] = useState([])
+  const [accountsError, setAccountsError] = useState('')
+  const [accountsLoading, setAccountsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState(DEFAULT_GYM_STATUS)
   const admin = isAdminUser(user)
@@ -60,8 +63,17 @@ export default function AppTopBar({ user }) {
 
   useEffect(() => {
     if (!open || !admin) return
-    rpcAdminListUsers(state.session.username, state.session.pin_hash).then(setAccounts).catch(() => setAccounts([]))
+    loadAccounts()
   }, [open, admin])
+
+  useEffect(() => {
+    if (!messageAlert) return
+    const timer = setTimeout(() => {
+      if (messageAlert.updated_at) localStorage.setItem(SEEN_MESSAGE_KEY, messageAlert.updated_at)
+      setMessageAlert(null)
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [messageAlert])
 
   const overall = useMemo(() => {
     if (status.locations.some(l => l.status === 'closed')) return statusMeta('closed')
@@ -92,6 +104,42 @@ export default function AppTopBar({ user }) {
       alert(e.message || 'Could not update gym status')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function loadAccounts() {
+    if (!state.session) return
+    setAccountsLoading(true)
+    setAccountsError('')
+    try {
+      setAccounts(await rpcAdminListUsers(state.session.username, state.session.pin_hash))
+    } catch (e) {
+      setAccounts([])
+      setAccountsError(e.message || 'Could not load accounts')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
+  async function disableAccount(username) {
+    if (!confirm(`Disable ${username}? They will not be able to sign in.`)) return
+    setAccountsError('')
+    try {
+      await rpcAdminDisableUser(state.session.username, state.session.pin_hash, username)
+      await loadAccounts()
+    } catch (e) {
+      setAccountsError(e.message || 'Could not disable account')
+    }
+  }
+
+  async function resetAccountXP(username) {
+    if (!confirm(`Reset XP for ${username}?`)) return
+    setAccountsError('')
+    try {
+      await rpcAdminResetUserXP(state.session.username, state.session.pin_hash, username)
+      await loadAccounts()
+    } catch (e) {
+      setAccountsError(e.message || 'Could not reset XP')
     }
   }
 
@@ -158,6 +206,11 @@ export default function AppTopBar({ user }) {
                   setDraft={setDraft}
                   saving={saving}
                   onSave={saveAdminStatus}
+                  loading={accountsLoading}
+                  error={accountsError}
+                  onRefresh={loadAccounts}
+                  onDisable={disableAccount}
+                  onResetXP={resetAccountXP}
                 />
               )}
             </div>
@@ -173,7 +226,34 @@ export default function AppTopBar({ user }) {
           }}
         />
       )}
+      {user.adminNotice && (
+        <AdminNoticeAlert
+          message={user.adminNotice}
+          onClose={actions.clearAdminNotice}
+        />
+      )}
     </header>
+  )
+}
+
+function AdminNoticeAlert({ message, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-x-0 top-20 z-[61] px-4 pointer-events-none">
+      <div className="max-w-md mx-auto glass-card border-accent/40 p-4 rounded-3xl pointer-events-auto">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-accent" style={{ fontVariationSettings: "'FILL' 1" }}>admin_panel_settings</span>
+          <p className="text-sm font-bold flex-1">{message}</p>
+          <button onClick={onClose} className="text-white/45 hover:text-white">
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -198,7 +278,7 @@ function StatusMessageAlert({ status, onClose }) {
   )
 }
 
-function AdminPanel({ accounts, draft, setDraft, saving, onSave }) {
+function AdminPanel({ accounts, draft, setDraft, saving, onSave, loading, error, onRefresh, onDisable, onResetXP }) {
   function patchLocation(key, status) {
     setDraft(d => ({
       ...d,
@@ -243,15 +323,26 @@ function AdminPanel({ accounts, draft, setDraft, saving, onSave }) {
       </div>
 
       <div className="mt-4">
-        <p className="metric-label mb-2">Created accounts</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="metric-label">Created accounts</p>
+          <button onClick={onRefresh} className="text-[10px] uppercase tracking-wider text-accent font-bold">Refresh</button>
+        </div>
+        {error && <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-lg px-2 py-1.5 mb-2">{error}</div>}
         <div className="max-h-40 overflow-auto space-y-1 pr-1">
           {accounts.map(account => (
-            <div key={account.username} className="flex items-center justify-between text-xs bg-bg-950/50 rounded-lg px-2 py-1.5">
-              <span className="font-semibold">{account.username}</span>
-              <span className="text-white/45">{(account.total_xp || 0).toLocaleString()} XP</span>
+            <div key={account.username} className="text-xs bg-bg-950/50 rounded-lg px-2 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <VerifiedName user={{ username: account.username, zionVerified: account.zion_verified }} className={`font-semibold ${account.disabled_by_admin ? 'text-white/35 line-through' : ''}`} badgeSize="xs" />
+                <span className="text-white/45">{(account.total_xp || 0).toLocaleString()} XP</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => onResetXP(account.username)} className="flex-1 rounded-lg bg-white/5 border border-white/10 py-1 text-white/60 hover:text-accent">Reset XP</button>
+                <button onClick={() => onDisable(account.username)} disabled={account.username === 'tris' || account.disabled_by_admin} className="flex-1 rounded-lg bg-danger/10 border border-danger/30 py-1 text-danger disabled:opacity-35">Disable</button>
+              </div>
             </div>
           ))}
-          {accounts.length === 0 && <div className="text-xs text-white/35">No accounts loaded.</div>}
+          {loading && <div className="text-xs text-white/35">Loading accounts...</div>}
+          {!loading && accounts.length === 0 && <div className="text-xs text-white/35">No accounts loaded.</div>}
         </div>
       </div>
     </div>

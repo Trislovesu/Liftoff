@@ -83,16 +83,17 @@ D:\Liftit\
     │   └── Header.jsx              page header with back button
     └── pages/
         ├── Login.jsx               Stitch red-edition auth screen: LIFTIT hero, glass inputs, signup/login toggle, post-signup avatar prompt
-        ├── Dashboard.jsx           Stitch red-edition dashboard: username welcome label, weekly weight graph, metric grid with Level/Rank detail sheets, muscle fatigue, recent lifts, pump-pic advice panel, floating start action
+        ├── Dashboard.jsx           Stitch red-edition dashboard: verified username welcome label, weekly weight graph, metric grid with Level/Rank detail sheets, collapsible recent muscles trained, recent lifts, floating start action
         ├── Workouts.jsx            list of saved workouts
         ├── WorkoutBuilder.jsx      Stitch custom-routine flow: routines home → select up to 3 muscles → organized library → editor. NO custom-exercise button.
         ├── WorkoutLogger.jsx       Stitch red-edition active session: timer/status header, completion bar, dense set table cards, FinishModal asks for pump pic.
         ├── WorkoutHistoryDetail.jsx  /history/:id — sets/reps/weight breakdown, XP, completion + pump bonuses
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
         ├── Gallery.jsx             pump pic feed, upload with EXIF check
-        ├── Leaderboard.jsx         avatars, 3 sort modes: All Time / This Week / Rank (tier-sorted)
+        ├── Leaderboard.jsx         avatars, clickable player rows, 3 sort modes: All Time / This Week / Rank (tier-sorted)
         ├── ExerciseAbout.jsx       /exercise/:id — instructions, tips, mistakes
-        └── Profile.jsx             avatar upload modal (or emoji), level/rank, clickable history, sign out
+        ├── PublicProfile.jsx       /u/:username public profile view: featured PR, body weight, public routines
+        └── Profile.jsx             avatar upload modal (or emoji), verification code modal, body weight, featured PR, level/rank, clickable history, sign out
 ```
 
 ## Data model (Supabase users table → AppContext shape)
@@ -107,7 +108,13 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
   lastSessions:  { [exerciseKey]: { weight, reps, date } },  // drives "last time" hints
   totalWorkouts,            // replaced streak as headline gym stat
   profilePicUrl,            // URL (Supabase storage) OR emoji char OR null
-  gymType                   // 'gym', 'home', or null from signup onboarding
+  gymType,                  // 'gym', 'home', or null from signup onboarding
+  bodyWeightLbs, bodyWeightUpdatedAt,
+  featuredWorkoutId,
+  featuredPR,               // latest top set for the selected featured routine
+  publicWorkouts,           // sanitized public routine snapshots for viewed profiles
+  zionMemberCode, zionVerified,
+  adminNotice               // e.g. "XP reset by admin"; shown then cleared client-side
 }
 ```
 
@@ -120,6 +127,10 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash. The row is public-read and added to `supabase_realtime`, and admin saves also send a direct Realtime broadcast so connected users receive status changes immediately without refresh. The client logs a console warning if the Realtime channel cannot subscribe.
 
 `app_rate_limits` is an internal SECURITY DEFINER rate-limit bucket table. Public RPCs call `app_rate_limit(...)` server-side; anon/authenticated roles cannot read it or execute helper functions directly.
+
+Public profile viewing uses `app_public_profile(username)` and only returns public-facing fields: rank stats, avatar, body weight/timestamp, featured PR, and `public_workouts`. Full workout history remains local/private.
+
+Admin account management is SQL-only through SECURITY DEFINER RPCs. `tris` can list accounts, soft-disable accounts (`disabled_by_admin = true`, login raises `Account disabled by admin`), and reset XP (`admin_notice = 'XP reset by admin'`). `app_save_state` intentionally preserves reset XP/muscles while that notice is active so stale LocalStorage cannot undo an admin reset.
 
 ## XP system (v2 — current)
 
@@ -179,6 +190,8 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - Don't add custom exercise creation in the builder — only library exercises (muscle mapping depends on it).
 - Don't add payments.
 - Don't put paid/secret third-party API keys in Vite/browser code. Anything named `VITE_*` is public in the built site; use a server/proxy first.
+- Don't expose full local workout history publicly. Only routines explicitly marked Public in the builder should appear on viewed profiles.
+- Don't hard-code Zion Fitness House database validation yet. For now, the verified badge accepts any 5 digit numeric member code for testing.
 - Don't redesign the bodygraph from scratch. The image is the visual source of truth; we only adjust overlays.
 - Don't change unrelated pages when asked to fix one thing.
 
@@ -207,6 +220,7 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - **HEIC photos** don't have parseable EXIF in our reader → falls back to `file.lastModified`. Works but less trustworthy.
 - **PWA-like camera capture** uses `<input type="file" accept="image/*" capture="environment">`. On desktop browsers this just opens a file picker.
 - **Workouts and history are PER-USER and stored in LocalStorage**, not in Supabase yet. Only the user profile + pump photos sync. To make workouts follow users across devices, lift them into Supabase later.
+- **Public routines are snapshots**, not full synced workout history. `publicWorkouts` is derived from local routines where `isPublic` is true and saved on the user row for profile viewing.
 - **Mock leaderboard data** (`src/data/mockLeaderboard.js`) is no longer used but kept for reference.
 - **Exercise GIF/media cache** is optional. `src/lib/exerciseMedia.js` reads `liftit.exerciseMedia.v1` only; direct WorkoutX browser calls were removed because Vite-exposed API keys are public.
 
@@ -240,7 +254,7 @@ git push
 | File | Purpose |
 |---|---|
 | `App.jsx` | Routes. Authed-only routes wrapped in a `status === 'authed'` guard; includes Dianna-only login intro before entering the app. |
-| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
+| `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts, featured PR), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, setBodyWeight, setFeaturedWorkout, setZionMemberCode, clearAdminNotice, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
 | `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status and leaderboard realtime subscription/broadcast helpers, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
 | `lib/exerciseMedia.js` | Optional exercise media cache reader, keyed by exercise name in LocalStorage. No direct paid API calls from the browser. |
@@ -250,13 +264,15 @@ git push
 | `lib/exifDate.js` | `readPhotoTakenAt` + `checkPhotoIsRecent` (uses funny rejections). |
 | `lib/funnyRejects.js` | `funnyOldPhotoReject(ageMs)`, `randomCompliment()`, `lastTimeNudge(weight, reps)`. |
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
+| `components/VerifiedName.jsx` | Username + glowing verified tick shown when `zionVerified` is true. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`; admin update messages appear as a themed on-screen alert outside the Z panel. |
 | `components/SignupOnboarding.jsx` | Animated post-signup flow: upload photo or choose emoji, then choose Gym/Home training setup. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
-| `pages/Dashboard.jsx` | Home dashboard. Weekly Progress charts weekly lifted weight volume, Level and Rank metric cards open minimal themed detail sheets, Muscle Fatigue uses recent workout history with 42-72h decay estimates. |
-| `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, and routine editor with Add from library. |
+| `pages/Dashboard.jsx` | Home dashboard. Weekly Progress charts weekly lifted weight volume, Level and Rank metric cards open minimal themed detail sheets, Recent Muscles Trained is a collapsible list derived from latest `muscleGain`, and the old pro-advice card is removed. |
+| `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, and Public/Private profile visibility toggle. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
+| `pages/PublicProfile.jsx` | Public player profile for `/u/:username`; shows body weight recency, featured PR, and public routine snapshots. |
 | `.env.example` | Template for required Vite Supabase env vars. |
 | `supabase/schema.sql` | Schema, RPCs, rate-limit helpers, storage policies. Idempotent. |
 
@@ -264,6 +280,8 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Admin + verified + dashboard cleanup:** admin panel now shows RPC errors, lists account rows, can soft-disable users and reset XP. Disabled users get `Account disabled by admin` on login; reset users see `XP reset by admin`, and stale local sync cannot restore reset XP. Signup onboarding and Profile now accept an optional 5 digit Zion Fitness House code and show a glowing verified tick beside usernames. Dashboard replaced Muscle Fatigue with a collapsible Recent Muscles Trained section and removed the pro-advice panel.
+- **Public profiles + PR upgrades:** leaderboard rows now open `/u/:username` public profiles. Users can set body weight during onboarding and edit it in Profile with a timestamp. Routine builder has a Public/Private toggle; only public routine snapshots show on viewed profiles. Users can choose a featured routine, and the next logged top set for that routine becomes the profile PR card with `NEW`/heavier-than-last-time tags and intensity-based border animation. Workout logger weight/reps inputs now use numeric text fields without spinner controls. Gym status alerts auto-dismiss after 5 seconds.
 - **Security/env hardening:** Supabase URL/anon key moved out of source into Vite env vars and GitHub Actions secrets. Added CSP in `index.html`, broadened `.gitignore` for env files, added `.env.example`, moved `pin_hash` session storage from LocalStorage to sessionStorage, disabled direct browser WorkoutX API calls, made gym-status broadcasts refresh from the database instead of trusting client payloads, and added Supabase RPC rate limits + stricter image storage policies.
 - **Dianna custom profile:** created Supabase user `dianna` with PIN `6767` and heart avatar. Logging in as Dianna triggers a one-time smooth themed intro with a heart and the text `hello my beatiful helper`, then carries her into the app normally. Intro is login-only, not shown on refresh/boot, and does not affect other users.
 - **Polish/onboarding/fatigue pass:** Weekly Progress now charts weekly lifted weight volume instead of XP. Added global transition polish and route fade-ins. New signups go through animated avatar/emoji selection followed by Gym/Home setup (`gym_type` in Supabase). Leaderboard refreshes live through Realtime broadcast after cloud sync. Dashboard `Muscle Rankings` became `Muscle Fatigue`, calculated from recent logged muscle work with a 42-72 hour recovery decay and tap-for-estimate detail sheet. Bottom Body tab is disabled/gray for now.

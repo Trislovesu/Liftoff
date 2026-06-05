@@ -11,6 +11,7 @@ import Body from './pages/Body.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import ExerciseAbout from './pages/ExerciseAbout.jsx'
 import Profile from './pages/Profile.jsx'
+import PublicProfile from './pages/PublicProfile.jsx'
 import WorkoutHistoryDetail from './pages/WorkoutHistoryDetail.jsx'
 import Login from './pages/Login.jsx'
 import AppTopBar from './components/AppTopBar.jsx'
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/exercise/:id" element={<ExerciseAbout />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/u/:username" element={<PublicProfile />} />
               <Route path="/history/:id" element={<WorkoutHistoryDetail />} />
             </Routes>
           </motion.div>

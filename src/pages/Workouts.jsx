@@ -25,6 +25,9 @@ export default function Workouts() {
                   <div className="font-bold text-lg truncate">{w.name}</div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {w.targetMuscles.map(m => <span key={m} className="chip">{m}</span>)}
+                    <span className={`chip ${w.isPublic ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-white/5 border-white/10 text-white/35'}`}>
+                      {w.isPublic ? 'Public' : 'Private'}
+                    </span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">

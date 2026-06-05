@@ -164,11 +164,13 @@ export default function WorkoutLogger() {
                       s.completed ? 'bg-bg-950/50 border-transparent' : active ? 'bg-bg-700/40 border-accent/30 kinetic-glow' : 'bg-bg-950/40 border-transparent'
                     }`}>
                       <div className={`col-span-2 font-semibold ${active ? 'text-accent' : 'text-white/70'}`}>{j + 1}</div>
-                      <input type="number" min="0" value={s.weight}
-                        onChange={e => updateSet(i, j, { weight: Number(e.target.value) })}
+                      <input type="text" inputMode="numeric" value={s.weight === 0 ? '' : s.weight}
+                        onChange={e => updateSet(i, j, { weight: Number(e.target.value.replace(/\D/g, '')) || 0 })}
+                        placeholder="0"
                         className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
-                      <input type="number" min="0" value={s.reps}
-                        onChange={e => updateSet(i, j, { reps: Number(e.target.value) })}
+                      <input type="text" inputMode="numeric" value={s.reps === 0 ? '' : s.reps}
+                        onChange={e => updateSet(i, j, { reps: Number(e.target.value.replace(/\D/g, '')) || 0 })}
+                        placeholder="0"
                         className="col-span-4 w-full bg-bg-950 border border-white/10 focus:border-accent focus:outline-none text-white font-extrabold text-lg px-2 py-1.5 rounded-xl" />
                       <div className="col-span-2 flex justify-end">
                         <button onClick={() => updateSet(i, j, { completed: !s.completed })}

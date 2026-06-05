@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../store/AppContext.jsx'
 import { RANKS, levelFromXP, rankFor } from '../lib/xp.js'
-import { rpcGetPumpPhotos } from '../lib/supabase.js'
-import { tierForLevel } from '../lib/tiers.js'
+import VerifiedName from '../components/VerifiedName.jsx'
 
 function setVolume(set) {
   return (Number(set.weight) || 0) * (Number(set.reps) || 0)
@@ -41,7 +40,6 @@ function recentSummary(history) {
     return {
       id: h.id,
       name: first?.name || h.workoutName,
-      workoutName: h.workoutName,
       muscle: first?.primaryMuscle || 'Workout',
       weight: best?.weight || 0,
       reps: best?.reps || 0,
@@ -51,32 +49,15 @@ function recentSummary(history) {
   })
 }
 
-function muscleFatigue(user, history) {
-  const now = Date.now()
-  return [...user.muscles]
-    .map(muscle => {
-      let score = 0
-      let latest = null
-      for (const session of history) {
-        const trainedAt = new Date(session.date).getTime()
-        if (!Number.isFinite(trainedAt)) continue
-        const hoursAgo = (now - trainedAt) / 36e5
-        if (hoursAgo > 72) continue
-        const gain = session.muscleGain?.[muscle.name] || 0
-        if (!gain) continue
-        latest = latest ? Math.max(latest, trainedAt) : trainedAt
-        const recency = Math.max(0, 1 - hoursAgo / 72)
-        const load = Math.min(1, gain / 220)
-        score += (30 + load * 70) * recency
-      }
-      const fatigue = Math.min(100, Math.round(score))
-      const status = fatigue >= 70 ? 'Fatigued' : fatigue >= 35 ? 'Recovering' : 'Ready'
-      const latestHours = latest ? (now - latest) / 36e5 : null
-      const recoverIn = latestHours == null || fatigue < 25 ? 0 : Math.max(0, Math.ceil(72 - latestHours))
-      return { ...muscle, tier: tierForLevel(muscle.level), fatigue, status, recoverIn, latestHours }
-    })
-    .sort((a, b) => b.fatigue - a.fatigue || a.name.localeCompare(b.name))
-    .slice(0, 6)
+function recentMusclesTrained(history) {
+  const seen = new Map()
+  for (const session of history) {
+    for (const [name, xp] of Object.entries(session.muscleGain || {})) {
+      if (!xp || seen.has(name)) continue
+      seen.set(name, { name, xp, workoutName: session.workoutName, date: session.date })
+    }
+  }
+  return [...seen.values()].slice(0, 8)
 }
 
 function xpNeededForLevel(level) {
@@ -89,32 +70,32 @@ function totalXPForLevel(level) {
   return total
 }
 
+function timeAgo(value) {
+  const diff = Date.now() - new Date(value).getTime()
+  const mins = Math.max(0, Math.floor(diff / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 export default function Dashboard() {
   const { state } = useApp()
   const { user, history } = state
-  const [pumpPhoto, setPumpPhoto] = useState(null)
   const [detail, setDetail] = useState(null)
-  const [selectedFatigue, setSelectedFatigue] = useState(null)
+  const [musclesOpen, setMusclesOpen] = useState(false)
   const lvl = levelFromXP(user.totalXP)
   const rank = rankFor(user.totalXP)
   const recent = recentSummary(history)
+  const recentMuscles = recentMusclesTrained(history)
   const weeklyWeight = weeklyWeightStats(history)
   const totalSets = history.reduce((sum, h) => sum + h.exercises.reduce((a, ex) => a + (ex.sets?.length || 0), 0), 0)
-  const fatigue = useMemo(() => muscleFatigue(user, history), [user, history])
-  const recommended = fatigue.find(m => m.fatigue < 35)?.name || fatigue.at(-1)?.name || 'Chest'
-
-  useEffect(() => {
-    let dead = false
-    rpcGetPumpPhotos(user.username)
-      .then(photos => { if (!dead) setPumpPhoto(photos[0] || null) })
-      .catch(() => { if (!dead) setPumpPhoto(null) })
-    return () => { dead = true }
-  }, [user.username])
 
   return (
     <div className="space-y-8">
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <p className="metric-label mb-1">Welcome back, {user.username}</p>
+        <p className="metric-label mb-1 flex items-center gap-1.5">Welcome back, <VerifiedName user={user} badgeSize="xs" /></p>
       </motion.section>
 
       <section className="glass-card p-6 relative overflow-hidden">
@@ -129,7 +110,6 @@ export default function Dashboard() {
             <p className="metric-label">LB</p>
           </div>
         </div>
-
         <div className="h-40 w-full relative">
           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 400 100">
             <defs>
@@ -159,39 +139,31 @@ export default function Dashboard() {
         <MetricCard label="Weekly XP" value={user.weeklyXP.toLocaleString()} sub="this week" hot />
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-center gap-3">
-            <h2 className="text-2xl font-extrabold tracking-tight">Muscle Fatigue</h2>
-            <span className="shrink-0 px-3 py-1 bg-bg-600 rounded-full metric-label text-accent border border-accent/20">
-              Train {recommended}
-            </span>
+      <section className="glass-card p-4">
+        <button onClick={() => setMusclesOpen(v => !v)} className="w-full flex items-center justify-between gap-3">
+          <div className="text-left">
+            <h2 className="text-2xl font-extrabold tracking-tight">Recent Muscles Trained</h2>
+            <p className="text-xs text-white/40">{recentMuscles.length ? `${recentMuscles.length} recent muscle groups` : 'Log a workout to fill this in'}</p>
           </div>
-        </div>
-        <div className="space-y-3">
-          {fatigue.map((m, i) => (
-            <button key={m.name} onClick={() => setSelectedFatigue(m)} className="glass-card p-4 block w-full text-left hover:border-accent/40 transition-all active:scale-[0.99]">
-              <div className="flex justify-between items-center mb-3">
+          <span className="material-symbols-outlined text-accent transition" style={{ transform: musclesOpen ? 'rotate(180deg)' : undefined }}>expand_more</span>
+        </button>
+        {musclesOpen && (
+          <div className="space-y-2 mt-4">
+            {recentMuscles.map((m, i) => (
+              <div key={m.name} className="bg-bg-950/45 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-10 h-10 rounded-xl border flex items-center justify-center font-extrabold"
-                    style={{ color: m.tier.color, background: `${m.tier.color}18`, borderColor: `${m.tier.color}44` }}
-                  >
-                    {i + 1}
-                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/30 text-accent flex items-center justify-center font-extrabold">{i + 1}</div>
                   <div className="min-w-0">
-                    <h3 className="font-bold truncate">{m.name}</h3>
-                    <p className="metric-label" style={{ color: m.tier.color }}>{m.tier.name} • {m.status}</p>
+                    <div className="font-bold truncate">{m.name}</div>
+                    <div className="text-xs text-white/40 truncate">{m.workoutName} · {timeAgo(m.date)}</div>
                   </div>
                 </div>
-                <span className="font-extrabold text-sm" style={{ color: m.tier.color }}>{m.fatigue}%</span>
+                <span className="text-xs font-extrabold text-xp">+{m.xp}</span>
               </div>
-              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${m.fatigue}%`, background: m.tier.color }} />
-              </div>
-            </button>
-          ))}
-        </div>
+            ))}
+            {recentMuscles.length === 0 && <div className="text-sm text-white/40 text-center py-4">No muscles trained yet.</div>}
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -199,7 +171,6 @@ export default function Dashboard() {
           <h2 className="text-2xl font-extrabold tracking-tight">Recent Lifts</h2>
           <Link to="/profile" className="metric-label text-accent">View all</Link>
         </div>
-
         {recent.length === 0 ? (
           <div className="glass-card p-6 text-center">
             <p className="text-white/45 text-sm">No workouts yet.</p>
@@ -229,25 +200,6 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section className="relative h-52 rounded-3xl overflow-hidden border border-white/10 bg-bg-800">
-        {pumpPhoto ? (
-          <img src={pumpPhoto.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        ) : (
-          <>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,0,51,0.25),transparent_35%),linear-gradient(135deg,#2e2e2e,#0a0a0a)]" />
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute left-8 top-8 w-24 h-24 border border-accent/50 rotate-12" />
-              <div className="absolute right-8 bottom-8 w-32 h-2 bg-accent/60 blur-sm" />
-            </div>
-          </>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-900 via-bg-900/40 to-transparent" />
-        <div className="absolute bottom-5 left-6">
-          <p className="metric-label text-accent mb-1">Pro advice</p>
-          <h3 className="text-xl font-extrabold pr-6">{pumpPhoto?.caption || 'You already proved you can show up. Now make the next set count.'}</h3>
-        </div>
-      </section>
-
       <Link
         to="/workouts"
         className="fixed bottom-24 right-[calc(50%-184px)] w-14 h-14 bg-accent text-white rounded-full shadow-[0_0_22px_rgba(255,0,51,0.45)] flex items-center justify-center z-40 active:scale-90 transition"
@@ -259,7 +211,6 @@ export default function Dashboard() {
 
       {detail === 'level' && <LevelDetailModal user={user} lvl={lvl} onClose={() => setDetail(null)} />}
       {detail === 'rank' && <RankDetailModal user={user} rank={rank} onClose={() => setDetail(null)} />}
-      {selectedFatigue && <FatigueDetailModal muscle={selectedFatigue} onClose={() => setSelectedFatigue(null)} />}
     </div>
   )
 }
@@ -317,14 +268,12 @@ function LevelDetailModal({ user, lvl, onClose }) {
           <p className="metric-label">this level</p>
         </div>
       </div>
-
       <div className="relative h-3 rounded-full bg-white/10 overflow-hidden mb-3">
         <div className="h-full rounded-full bg-accent shadow-[0_0_18px_rgba(255,0,51,0.65)]" style={{ width: `${pathProgress * 100}%` }} />
       </div>
       <div className="flex justify-between text-[10px] text-white/35 font-bold uppercase tracking-wider mb-6">
         {milestones.map(level => <span key={level}>Lv {level}</span>)}
       </div>
-
       <div className="grid grid-cols-2 gap-3">
         <MiniStat label="Next milestone" value={`Level ${nextMilestone}`} />
         <MiniStat label="Milestone XP needed" value={xpToMilestone.toLocaleString()} />
@@ -347,7 +296,6 @@ function RankDetailModal({ user, rank, onClose }) {
           <p className="metric-label">{rank.next ? `to ${rank.next.name}` : 'rank'}</p>
         </div>
       </div>
-
       <div className="space-y-2">
         {RANKS.map(item => {
           const active = item.name === rank.current.name
@@ -364,7 +312,6 @@ function RankDetailModal({ user, rank, onClose }) {
           )
         })}
       </div>
-
       <div className="mt-5">
         <div className="flex justify-between metric-label mb-2">
           <span>{rank.current.name}</span>
@@ -373,40 +320,6 @@ function RankDetailModal({ user, rank, onClose }) {
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
           <div className="h-full bg-accent rounded-full" style={{ width: `${rank.progress * 100}%` }} />
         </div>
-      </div>
-    </DetailShell>
-  )
-}
-
-function FatigueDetailModal({ muscle, onClose }) {
-  const hardRecovery = muscle.recoverIn ? `about ${muscle.recoverIn} hours` : 'roughly 42-72 hours'
-  const estimate = muscle.fatigue >= 70
-    ? `Give it ${hardRecovery} before training it hard again.`
-    : muscle.fatigue >= 35
-      ? `It is recovering. A lighter session is safer for the next ${muscle.recoverIn || 24} hours.`
-      : 'This muscle looks ready for a clean session.'
-
-  return (
-    <DetailShell onClose={onClose}>
-      <p className="metric-label text-accent mb-1">Muscle fatigue</p>
-      <div className="flex items-end justify-between gap-4 mb-5">
-        <div>
-          <h2 className="text-4xl font-extrabold tracking-tight">{muscle.name}</h2>
-          <p className="text-sm text-white/45 mt-1">{muscle.status}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-extrabold" style={{ color: muscle.tier.color }}>{muscle.fatigue}%</p>
-          <p className="metric-label">fatigue</p>
-        </div>
-      </div>
-
-      <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-5">
-        <div className="h-full rounded-full" style={{ width: `${muscle.fatigue}%`, background: muscle.tier.color }} />
-      </div>
-
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4">
-        <p className="metric-label mb-2">Recovery estimate</p>
-        <p className="text-sm leading-relaxed text-white/80">{estimate}</p>
       </div>
     </DetailShell>
   )

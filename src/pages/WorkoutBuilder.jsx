@@ -31,6 +31,7 @@ export default function WorkoutBuilder() {
   const [name, setName] = useState(existing?.name ?? '')
   const [targetMuscles, setTargetMuscles] = useState(existing?.targetMuscles ?? [])
   const [exercises, setExercises] = useState(existing?.exercises ?? [])
+  const [isPublic, setIsPublic] = useState(!!existing?.isPublic)
   const [picker, setPicker] = useState(false)
   const [flow, setFlow] = useState(existing ? 'editor' : 'home')
   const [q, setQ] = useState('')
@@ -61,7 +62,7 @@ export default function WorkoutBuilder() {
   function save() {
     if (!name.trim()) { alert('Give your workout a name'); return }
     if (exercises.length === 0) { alert('Add at least one exercise'); return }
-    const workout = { id: existing?.id ?? cid(), name: name.trim(), targetMuscles, exercises }
+    const workout = { id: existing?.id ?? cid(), name: name.trim(), targetMuscles, exercises, isPublic }
     actions.saveWorkout(workout)
     navigate('/workouts')
   }
@@ -114,6 +115,24 @@ export default function WorkoutBuilder() {
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. Push Day" className="input w-full" />
           </div>
+          <button
+            type="button"
+            onClick={() => setIsPublic(v => !v)}
+            className={`w-full rounded-2xl border px-4 py-3 flex items-center justify-between gap-3 transition ${
+              isPublic ? 'bg-accent/10 border-accent/45 text-white' : 'bg-bg-950/40 border-white/10 text-white/65'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-left">
+              <span className="material-symbols-outlined text-xl">{isPublic ? 'public' : 'lock'}</span>
+              <span>
+                <span className="block font-extrabold">{isPublic ? 'Public routine' : 'Private routine'}</span>
+                <span className="block text-xs text-white/40">{isPublic ? 'Appears on your viewed profile' : 'Only you can see this routine'}</span>
+              </span>
+            </span>
+            <span className={`w-11 h-6 rounded-full p-1 transition ${isPublic ? 'bg-accent' : 'bg-white/10'}`}>
+              <span className={`block w-4 h-4 rounded-full bg-white transition ${isPublic ? 'translate-x-5' : ''}`} />
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center justify-between px-1">
@@ -275,8 +294,14 @@ function NumberField({ label, value, onChange }) {
   return (
     <label className="block">
       <div className="label mb-1">{label}</div>
-      <input type="number" min="0" value={value}
-        onChange={e => onChange(Number(e.target.value))} className="input w-full" />
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value === 0 ? '' : value}
+        onChange={e => onChange(Number(e.target.value.replace(/\D/g, '')) || 0)}
+        className="input w-full"
+        placeholder="0"
+      />
     </label>
   )
 }
