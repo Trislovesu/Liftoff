@@ -350,8 +350,8 @@ export function AppProvider({ children }) {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
   }, [state.user, state.session, state.status])
 
-  const signup = useCallback(async (username, pin) => {
-    const { user, pin_hash } = await rpcSignup(username, pin, createInitialMuscles())
+  const signup = useCallback(async (username, pin, email) => {
+    const { user, pin_hash } = await rpcSignup(username, pin, createInitialMuscles(), email)
     const session = { username: user.username, pin_hash }
     saveSession(session)
     dispatch({ type: 'AUTH_SUCCESS', session, user: rpcUserToClient(user), isNew: true })
@@ -390,6 +390,28 @@ export function AppProvider({ children }) {
     dispatch({ type: 'PATCH_USER', patch: { featuredLiftKeys: nextKeys, featuredPRs: nextPRs } })
   }, [state.user])
 
+  const setManualFeaturedPR = useCallback((liftKey, { weight, reps }) => {
+    const lift = BIG_THREE_LIFTS.find(item => item.key === liftKey)
+    const nextWeight = Number(weight) || 0
+    const nextReps = Number(reps) || 0
+    if (!lift || nextWeight <= 0 || nextReps <= 0) throw new Error('Enter weight and reps')
+    const nextPRs = {
+      ...(state.user.featuredPRs || {}),
+      [liftKey]: {
+        liftKey,
+        liftName: lift.label,
+        exerciseName: lift.label,
+        weight: nextWeight,
+        reps: nextReps,
+        tag: 'MANUAL',
+        intensity: prIntensity(nextWeight, nextReps),
+        date: new Date().toISOString()
+      }
+    }
+    const nextKeys = [...new Set([...(state.user.featuredLiftKeys || []), liftKey])]
+    dispatch({ type: 'PATCH_USER', patch: { featuredLiftKeys: nextKeys, featuredPRs: nextPRs } })
+  }, [state.user])
+
   const setZionMemberCode = useCallback((zionMemberCode) => {
     const code = String(zionMemberCode || '').replace(/\D/g, '').slice(0, 5)
     if (code.length !== 5) throw new Error('Enter a 5 digit Zion Fitness House code')
@@ -403,7 +425,7 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     state, dispatch,
     actions: {
-      signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedLiftKeys, setZionMemberCode, clearAdminNotice,
+      signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedLiftKeys, setManualFeaturedPR, setZionMemberCode, clearAdminNotice,
       saveWorkout: (w) => dispatch({ type: 'SAVE_WORKOUT', workout: w }),
       deleteWorkout: (id) => dispatch({ type: 'DELETE_WORKOUT', id }),
       logWorkout: ({ workoutId, loggedExercises, durationSec, pumpPicBonus }) =>
@@ -413,7 +435,7 @@ export function AppProvider({ children }) {
       endActiveWorkout: () => dispatch({ type: 'END_ACTIVE_WORKOUT' }),
       activeElapsed
     }
-  }), [state, signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedLiftKeys, setZionMemberCode, clearAdminNotice])
+  }), [state, signup, login, signOut, setProfilePic, setTrainingLocation, completeOnboarding, setBodyWeight, setFeaturedLiftKeys, setManualFeaturedPR, setZionMemberCode, clearAdminNotice])
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }

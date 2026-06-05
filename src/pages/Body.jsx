@@ -19,7 +19,13 @@ export default function Body() {
   const [tab, setTab] = useState('Bodygraph')
 
   return (
-    <div>
+    <div className="relative">
+      <div className="pointer-events-none absolute left-1/2 top-28 z-40 w-[120%] -translate-x-1/2 -rotate-12">
+        <div className="border-y border-white/25 bg-accent/90 py-3 text-center shadow-[0_0_24px_rgba(255,0,51,0.38)]">
+          <span className="font-extrabold uppercase tracking-[0.38em] text-white">Coming Soon</span>
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-0 z-30 bg-bg-900/35 backdrop-blur-[1px]" />
       <BodyHeaderStats user={state.user} />
       <BodygraphTabs active={tab} onChange={setTab} />
 

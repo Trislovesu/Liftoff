@@ -18,10 +18,10 @@ export async function hashPin(pin) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-export async function rpcSignup(username, pin, initialMuscles) {
+export async function rpcSignup(username, pin, initialMuscles, email) {
   const pin_hash = await hashPin(pin)
   const { data, error } = await supabase.rpc('app_signup', {
-    p_username: username, p_pin_hash: pin_hash, p_initial_muscles: initialMuscles
+    p_username: username, p_pin_hash: pin_hash, p_initial_muscles: initialMuscles, p_email: email
   })
   if (error) throw new Error(error.message)
   return { user: data, pin_hash }

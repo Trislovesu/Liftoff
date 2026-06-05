@@ -18,9 +18,10 @@ export default function BottomNav() {
               key={item.to}
               type="button"
               disabled
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold text-white/20 cursor-not-allowed"
+              className="relative flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold text-white/20 cursor-not-allowed overflow-hidden"
               aria-label={`${item.label} disabled`}
             >
+              <span className="absolute left-1/2 top-1/2 w-20 -translate-x-1/2 -translate-y-1/2 -rotate-12 bg-accent/90 text-white text-[7px] font-extrabold tracking-[0.16em] py-0.5 shadow-[0_0_10px_rgba(255,0,51,0.45)]">COMING SOON</span>
               <span className="material-symbols-outlined text-[22px] leading-none">{item.icon}</span>
               <span className="uppercase tracking-[0.12em]">{item.label}</span>
             </button>

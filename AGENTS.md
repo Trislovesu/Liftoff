@@ -17,7 +17,7 @@ A gamified, mobile-first workout tracker. Track lifts → level up muscles → c
 
 - **Frontend:** React 18 + Vite + Tailwind + Framer Motion + React Router (`HashRouter` because GH Pages)
 - **Backend:** Supabase — Postgres (RPC-only access via SECURITY DEFINER functions) + Storage (public bucket)
-- **Auth:** custom username + 4–8 digit PIN, SHA-256 hashed client-side with salt `liftit::v1`. No Supabase Auth, no email.
+- **Auth:** custom username + PIN, SHA-256 hashed client-side with salt `liftit::v1`. New signups require email + exactly 6 digit PIN; login still accepts 4-8 digits for older accounts. No Supabase Auth.
 - **Hosting:** GitHub Pages via Actions workflow (`.github/workflows/deploy.yml`). Set `base: './'` in `vite.config.js` and `HashRouter` to avoid SPA 404s.
 - **Persistence:** LocalStorage cache (`liftit.local.v1`) for workouts/history/user cache + sessionStorage credential (`liftit.session.v1`) for the current tab session + Supabase for cloud sync. UI updates instantly; cloud catches up via debounced `rpcSaveState` ~1.2s after state changes.
 
@@ -91,7 +91,7 @@ D:\Liftit\
         ├── WorkoutHistoryDetail.jsx  /history/:id — sets/reps/weight breakdown, XP, completion + pump bonuses
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
         ├── Gallery.jsx             pump pic feed, upload with EXIF check
-        ├── Leaderboard.jsx         avatars, clickable player rows, 3 sort modes: All Time / This Week / Rank (tier-sorted)
+        ├── Leaderboard.jsx         podium top 3 + normal rows, avatars, clickable player rows, 3 sort modes
         ├── ExerciseAbout.jsx       /exercise/:id — instructions, tips, mistakes
         ├── PublicProfile.jsx       /u/:username public profile view: featured PR, body weight, public routines
         └── Profile.jsx             avatar upload modal (or emoji), verification code modal, body weight, featured PR, level/rank, clickable history, sign out
@@ -103,7 +103,7 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 
 ```js
 {
-  username, totalXP, weeklyXP, weekStart, streak, lastWorkoutDate,
+  username, email, totalXP, weeklyXP, weekStart, streak, lastWorkoutDate,
   muscles: [{name, level, xp}],
   personalBests: { [exerciseKey]: { weight, reps } },
   lastSessions:  { [exerciseKey]: { weight, reps, date } },  // drives "last time" hints
@@ -274,7 +274,7 @@ git push
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, and Public/Private profile visibility toggle. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
-| `pages/PublicProfile.jsx` | Public player profile for `/u/:username`; shows body weight recency, featured PR, and public routine snapshots. |
+| `pages/PublicProfile.jsx` | Public player profile for `/u/:username`; shows body weight recency, Big 3 featured PRs, and public routine snapshots. |
 | `.env.example` | Template for required Vite Supabase env vars. |
 | `supabase/schema.sql` | Schema, RPCs, rate-limit helpers, storage policies. Idempotent. |
 
@@ -282,6 +282,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Manual PR entry + signup/podium polish:** Profile Big 3 PRs are now manually editable; tapping Bench Press, Squat, or Deadlift opens weight/reps entry and displays animated PR cards. Signup uses a dedicated `Sign up now!` button under sign-in and requires email + exactly 6 digit PIN. Body tab/page has a red Coming Soon tape treatment. Leaderboard top 3 render as a podium with native celebration/fire effects; raw LottieFiles page links were not embedded because they are not direct animation asset URLs.
 - **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.
 - **Admin + verified + dashboard cleanup:** admin panel now shows RPC errors, lists account rows, can soft-disable users and reset XP. Disabled users get `Account disabled by admin` on login; reset users see `XP reset by admin`, and stale local sync cannot restore reset XP. Signup onboarding and Profile now accept an optional 5 digit Zion Fitness House code and show a glowing verified tick beside usernames. Dashboard replaced Muscle Fatigue with a collapsible Recent Muscles Trained section and removed the pro-advice panel.
 - **Public profiles + PR upgrades:** leaderboard rows now open `/u/:username` public profiles. Users can set body weight during onboarding and edit it in Profile with a timestamp. Routine builder has a Public/Private toggle; only public routine snapshots show on viewed profiles. Users can choose a featured routine, and the next logged top set for that routine becomes the profile PR card with `NEW`/heavier-than-last-time tags and intensity-based border animation. Workout logger weight/reps inputs now use numeric text fields without spinner controls. Gym status alerts auto-dismiss after 5 seconds.

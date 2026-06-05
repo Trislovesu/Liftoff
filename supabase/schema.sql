@@ -30,6 +30,7 @@ alter table public.users add column if not exists zion_member_code text;
 alter table public.users add column if not exists zion_verified boolean not null default false;
 alter table public.users add column if not exists disabled_by_admin boolean not null default false;
 alter table public.users add column if not exists admin_notice text;
+alter table public.users add column if not exists email text;
 
 create table if not exists public.pump_photos (
   id uuid primary key default gen_random_uuid(),
@@ -127,8 +128,9 @@ begin
 end; $$;
 
 -- ---------- RPC: signup ----------
+drop function if exists public.app_signup(text, text, jsonb);
 create or replace function public.app_signup(
-  p_username text, p_pin_hash text, p_initial_muscles jsonb
+  p_username text, p_pin_hash text, p_initial_muscles jsonb, p_email text default null
 ) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u public.users;
 begin
@@ -143,12 +145,15 @@ begin
   if p_pin_hash is null or length(p_pin_hash) < 16 then
     raise exception 'Invalid PIN';
   end if;
+  if p_email is null or lower(trim(p_email)) !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+    raise exception 'Valid email required';
+  end if;
   if jsonb_typeof(coalesce(p_initial_muscles, '[]'::jsonb)) <> 'array'
      or jsonb_array_length(coalesce(p_initial_muscles, '[]'::jsonb)) > 20 then
     raise exception 'Invalid muscle data';
   end if;
-  insert into public.users (username, pin_hash, muscles)
-  values (lower(trim(p_username)), p_pin_hash, coalesce(p_initial_muscles, '[]'::jsonb))
+  insert into public.users (username, pin_hash, muscles, email)
+  values (lower(trim(p_username)), p_pin_hash, coalesce(p_initial_muscles, '[]'::jsonb), lower(trim(p_email)))
   returning * into u;
   return to_jsonb(u) - 'pin_hash';
 exception when unique_violation then
@@ -416,7 +421,7 @@ revoke all on public.app_rate_limits from anon, authenticated;
 grant select on public.gym_status to anon, authenticated;
 revoke execute on function public.app_client_ip() from public, anon, authenticated;
 revoke execute on function public.app_rate_limit(text, int, int) from public, anon, authenticated;
-grant execute on function public.app_signup(text, text, jsonb) to anon, authenticated;
+grant execute on function public.app_signup(text, text, jsonb, text) to anon, authenticated;
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_save_state(text, text, jsonb) to anon, authenticated;
 grant execute on function public.app_leaderboard() to anon, authenticated;

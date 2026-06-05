@@ -16,6 +16,9 @@ export default function Profile() {
   const { current, next, xpToNext } = rankFor(user.totalXP)
   const [picOpen, setPicOpen] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  const [prOpen, setPrOpen] = useState(null)
+  const [prDraft, setPrDraft] = useState({ weight: '', reps: '' })
+  const [prError, setPrError] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [weightDraft, setWeightDraft] = useState(user.bodyWeightLbs ? String(user.bodyWeightLbs) : '')
   const [memberCode, setMemberCode] = useState(user.zionMemberCode || '')
@@ -118,16 +121,19 @@ export default function Profile() {
         <div className="grid grid-cols-3 gap-2">
           {BIG_THREE_LIFTS.map(lift => {
             const active = (user.featuredLiftKeys || []).includes(lift.key)
+            const pr = user.featuredPRs?.[lift.key]
             return (
               <button
                 key={lift.key}
                 onClick={() => {
-                  const current = user.featuredLiftKeys || []
-                  actions.setFeaturedLiftKeys(active ? current.filter(key => key !== lift.key) : [...current, lift.key])
+                  setPrOpen(lift)
+                  setPrDraft({ weight: pr?.weight ? String(pr.weight) : '', reps: pr?.reps ? String(pr.reps) : '' })
+                  setPrError('')
                 }}
                 className={`rounded-2xl border px-3 py-3 text-xs font-extrabold transition ${active ? 'bg-accent/15 border-accent/50 text-accent shadow-[0_0_14px_rgba(255,0,51,0.16)]' : 'bg-white/[0.03] border-white/10 text-white/45'}`}
               >
-                {lift.label}
+                <span className="block">{lift.label}</span>
+                <span className="block mt-1 text-[10px] text-white/35">{pr ? `${pr.weight} x ${pr.reps}` : 'Enter PR'}</span>
               </button>
             )
           })}
@@ -239,6 +245,58 @@ export default function Profile() {
               Verify
             </button>
             <button onClick={() => setVerifyOpen(false)} className="btn-ghost w-full text-sm">Close</button>
+          </div>
+        </div>
+      )}
+
+      {prOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur p-3"
+          onClick={() => setPrOpen(null)}>
+          <div className="card w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 rounded-2xl bg-accent/10 border border-accent/35 mx-auto mb-3 flex items-center justify-center text-accent shadow-[0_0_24px_rgba(255,0,51,0.2)]">
+                <span className="material-symbols-outlined text-3xl">fitness_center</span>
+              </div>
+              <h3 className="text-xl font-extrabold">{prOpen.label} PR</h3>
+              <p className="text-sm text-white/45 mt-1">Enter your best weight and reps.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <label>
+                <div className="label mb-1">Weight</div>
+                <input
+                  value={prDraft.weight}
+                  inputMode="numeric"
+                  onChange={e => setPrDraft(d => ({ ...d, weight: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  className="input w-full text-center text-2xl font-extrabold"
+                  placeholder="225"
+                />
+              </label>
+              <label>
+                <div className="label mb-1">Reps</div>
+                <input
+                  value={prDraft.reps}
+                  inputMode="numeric"
+                  onChange={e => setPrDraft(d => ({ ...d, reps: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                  className="input w-full text-center text-2xl font-extrabold"
+                  placeholder="5"
+                />
+              </label>
+            </div>
+            {prError && <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-xl px-3 py-2 mb-3">{prError}</div>}
+            <button
+              onClick={() => {
+                try {
+                  actions.setManualFeaturedPR(prOpen.key, prDraft)
+                  setPrOpen(null)
+                } catch (error) {
+                  setPrError(error.message)
+                }
+              }}
+              className="btn-primary w-full mb-3"
+            >
+              Save PR
+            </button>
+            <button onClick={() => setPrOpen(null)} className="btn-ghost w-full text-sm">Close</button>
           </div>
         </div>
       )}

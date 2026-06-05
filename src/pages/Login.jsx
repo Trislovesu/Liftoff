@@ -6,6 +6,7 @@ export default function Login() {
   const { actions } = useApp()
   const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
   const [error, setError] = useState('')
@@ -16,11 +17,13 @@ export default function Login() {
     setError('')
     const u = username.trim()
     if (!/^[a-zA-Z0-9_]{2,20}$/.test(u)) { setError('Username: 2-20 letters, numbers, or underscore.'); return }
-    if (!/^\d{4,8}$/.test(pin)) { setError('PIN must be 4-8 digits.'); return }
+    if (mode === 'signup' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError('Enter a valid email.'); return }
+    if (mode === 'signup' && !/^\d{6}$/.test(pin)) { setError('PIN must be exactly 6 digits.'); return }
+    if (mode === 'login' && !/^\d{4,8}$/.test(pin)) { setError('PIN must be 4-8 digits.'); return }
     if (mode === 'signup' && pin !== pin2) { setError("PINs don't match."); return }
     setBusy(true)
     try {
-      if (mode === 'signup') { await actions.signup(u, pin) }
+      if (mode === 'signup') { await actions.signup(u, pin, email.trim()) }
       else { await actions.login(u, pin) }
     } catch (err) { setError(err.message || 'Something went wrong.') }
     finally { setBusy(false) }
@@ -60,6 +63,24 @@ export default function Login() {
             </div>
           </div>
 
+          {mode === 'signup' && (
+            <div className="glass-input flex flex-col">
+              <label className="metric-label mb-1">Email</label>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-white/45 text-xl">mail</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="bg-transparent border-none p-0 w-full focus:outline-none text-white text-lg placeholder:text-white/25"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="glass-input flex flex-col">
             <label className="metric-label mb-1">Secure PIN</label>
             <div className="flex items-center gap-3">
@@ -68,7 +89,7 @@ export default function Login() {
                 type="password"
                 inputMode="numeric"
                 value={pin}
-                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, mode === 'signup' ? 6 : 8))}
                 placeholder="••••"
                 className="bg-transparent border-none p-0 w-full focus:outline-none text-white text-3xl font-extrabold tracking-[0.35em] placeholder:text-white/25"
               />
@@ -84,7 +105,7 @@ export default function Login() {
                   type="password"
                   inputMode="numeric"
                   value={pin2}
-                  onChange={e => setPin2(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  onChange={e => setPin2(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="••••"
                   className="bg-transparent border-none p-0 w-full focus:outline-none text-white text-3xl font-extrabold tracking-[0.35em] placeholder:text-white/25"
                 />
@@ -99,6 +120,16 @@ export default function Login() {
             <span className="material-symbols-outlined text-[22px]">arrow_forward</span>
           </button>
 
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setError(''); setPin(''); setPin2('') }}
+              className="w-full h-12 rounded-xl border border-accent/40 bg-accent/10 text-accent font-extrabold shadow-[0_0_18px_rgba(255,0,51,0.14)] active:scale-95 transition"
+            >
+              Sign up now!
+            </button>
+          )}
+
           <div className="flex items-center justify-center gap-2 pt-1">
             <span className="material-symbols-outlined text-accent text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
             <p className="metric-label">PIN hashed locally</p>
@@ -108,14 +139,16 @@ export default function Login() {
         <footer className="mt-8 flex flex-col items-center gap-4">
           <div className="flex items-center gap-6">
             <button type="button" className="metric-label hover:text-accent transition">Forgot PIN</button>
-            <div className="w-1.5 h-1.5 rounded-full bg-bg-700" />
-            <button
-              type="button"
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-              className="metric-label hover:text-accent transition"
-            >
-              {mode === 'login' ? 'Create account' : 'Log in'}
-            </button>
+            {mode === 'signup' && <div className="w-1.5 h-1.5 rounded-full bg-bg-700" />}
+            {mode === 'signup' && (
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); setPin(''); setPin2('') }}
+                className="metric-label hover:text-accent transition"
+              >
+                Log in
+              </button>
+            )}
           </div>
           <div className="pt-6 opacity-40 flex gap-4 text-accent">
             <span className="material-symbols-outlined">fitness_center</span>

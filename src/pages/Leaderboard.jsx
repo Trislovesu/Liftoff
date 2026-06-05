@@ -90,19 +90,32 @@ export default function Leaderboard() {
       {error && <div className="card p-4 text-center text-danger text-sm">{error}</div>}
 
       {!loading && !error && (
-        <div className="space-y-2">
-          {sorted.map((u, i) => {
+        <div className="space-y-4">
+          {sorted.length > 0 && (
+            <section className="pb-2">
+              <div className="flex justify-center mb-3">
+                <PodiumCard user={sorted[0]} place={1} mode={mode} isYou={sorted[0].username === state.user?.username} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 items-end">
+                {sorted[1] && <PodiumCard user={sorted[1]} place={2} mode={mode} isYou={sorted[1].username === state.user?.username} />}
+                {sorted[2] && <PodiumCard user={sorted[2]} place={3} mode={mode} isYou={sorted[2].username === state.user?.username} />}
+              </div>
+            </section>
+          )}
+
+          {sorted.slice(3).map((u, i) => {
             const rank = rankFor(u.totalXP).current
             const isYou = u.username === state.user?.username
             const lvl = levelFromXP(u.totalXP).level
             const xpValue = mode === 'weekly' ? u.weeklyXP : u.totalXP
+            const place = i + 4
             return (
               <Link key={u.username + i}
                 to={`/u/${u.username}`}
                 className={`card p-3 flex items-center gap-3 ${isYou ? 'border-accent/60 shadow-glow' : ''}`}
                 style={isYou ? { background: 'linear-gradient(135deg, rgba(170,170,170,0.18), rgba(56,225,176,0.06))' } : undefined}>
-                <div className={`w-6 text-center font-extrabold ${i < 3 ? 'text-gold' : 'text-white/40'}`}>
-                  {i + 1}
+                <div className="w-6 text-center font-extrabold text-white/40">
+                  {place}
                 </div>
                 <Avatar user={u} size={40} ring={rank.color} />
                 <div className="min-w-0 flex-1">
@@ -131,6 +144,78 @@ export default function Leaderboard() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function PodiumCard({ user, place, mode, isYou }) {
+  const rank = rankFor(user.totalXP).current
+  const lvl = levelFromXP(user.totalXP).level
+  const xpValue = mode === 'weekly' ? user.weeklyXP : user.totalXP
+  const first = place === 1
+
+  return (
+    <Link
+      to={`/u/${user.username}`}
+      className={`relative block overflow-hidden rounded-3xl border bg-bg-950/70 p-4 text-center transition active:scale-[0.98] ${
+        first
+          ? 'w-[78%] border-gold/60 shadow-[0_0_36px_rgba(255,215,0,0.24)]'
+          : 'border-accent/35 shadow-[0_0_24px_rgba(255,0,51,0.16)]'
+      } ${isYou ? 'ring-1 ring-accent/70' : ''}`}
+    >
+      {first ? <CelebrationEffect /> : <FireEffect />}
+      <div className="relative z-10">
+        <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full font-extrabold ${first ? 'bg-gold text-bg-950' : 'bg-accent text-white'}`}>
+          {place}
+        </div>
+        <div className="flex justify-center mb-2">
+          <Avatar user={user} size={first ? 58 : 48} ring={rank.color} />
+        </div>
+        <VerifiedName user={user} className="justify-center font-extrabold" />
+        {isYou && <div className="metric-label text-accent mt-1">You</div>}
+        <div className="text-xs mt-2" style={{ color: rank.color }}>{rank.name} · Lv {lvl}</div>
+        <div className="mt-3 text-2xl font-extrabold text-xp">{(xpValue || 0).toLocaleString()}</div>
+        <div className="metric-label">{mode === 'weekly' ? 'Weekly XP' : 'Total XP'}</div>
+      </div>
+    </Link>
+  )
+}
+
+function CelebrationEffect() {
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {[...Array(14)].map((_, i) => (
+        <span
+          key={i}
+          className="absolute h-1.5 w-1.5 rounded-full bg-gold animate-ping"
+          style={{
+            left: `${8 + ((i * 17) % 84)}%`,
+            top: `${8 + ((i * 23) % 62)}%`,
+            animationDelay: `${i * 0.13}s`,
+            animationDuration: '1.6s'
+          }}
+        />
+      ))}
+      <div className="absolute inset-x-6 top-0 h-16 bg-[radial-gradient(circle,rgba(255,215,0,0.35),transparent_60%)] blur-xl" />
+    </div>
+  )
+}
+
+function FireEffect() {
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute -inset-px rounded-3xl border border-accent/40 animate-pulse" />
+      {[...Array(10)].map((_, i) => (
+        <span
+          key={i}
+          className="absolute bottom-0 h-7 w-3 rounded-full bg-gradient-to-t from-accent via-orange-400 to-transparent blur-[1px] animate-pulse"
+          style={{
+            left: `${4 + i * 10}%`,
+            animationDelay: `${i * 0.12}s`,
+            transform: `scaleY(${0.7 + (i % 3) * 0.18})`
+          }}
+        />
+      ))}
     </div>
   )
 }
