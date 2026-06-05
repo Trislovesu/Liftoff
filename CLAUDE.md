@@ -19,11 +19,11 @@ A gamified, mobile-first workout tracker. Track lifts → level up muscles → c
 - **Backend:** Supabase — Postgres (RPC-only access via SECURITY DEFINER functions) + Storage (public bucket)
 - **Auth:** custom username + 4–8 digit PIN, SHA-256 hashed client-side with salt `liftit::v1`. No Supabase Auth, no email.
 - **Hosting:** GitHub Pages via Actions workflow (`.github/workflows/deploy.yml`). Set `base: './'` in `vite.config.js` and `HashRouter` to avoid SPA 404s.
-- **Persistence:** LocalStorage cache (`liftit.local.v1`, `liftit.session.v1`) + Supabase for cloud sync. UI updates instantly; cloud catches up via debounced `rpcSaveState` ~1.2s after state changes.
+- **Persistence:** LocalStorage cache (`liftit.local.v1`) for workouts/history/user cache + sessionStorage credential (`liftit.session.v1`) for the current tab session + Supabase for cloud sync. UI updates instantly; cloud catches up via debounced `rpcSaveState` ~1.2s after state changes.
 
 ## Critical: external infra the user manages
 
-1. **Supabase project URL + anon key** — hardcoded in `src/lib/supabase.js`. Safe to commit (RLS-locked).
+1. **Supabase project URL + anon key** — loaded from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. For GitHub Pages, set these as repository secrets used by `.github/workflows/deploy.yml`. Local dev can copy `.env.example` to `.env.local`.
 2. **Supabase Storage bucket `user-content`** — must exist, public, with policies for anon insert+select (defined in `supabase/schema.sql`).
 3. **GitHub Actions workflow permissions** — Settings → Actions → General → Workflow permissions → "Read and write permissions".
 
@@ -34,6 +34,7 @@ If a new session needs to re-run the schema: paste `supabase/schema.sql` into Su
 ```
 D:\Liftit\
 ├── .github/workflows/deploy.yml   GH Pages deploy on push to main
+├── .env.example                    local env template for Supabase public config
 ├── index.html                      theme-color #131313 (Kinetic Dark Redux)
 ├── package.json                    React + Vite + Tailwind + Framer Motion + @supabase/supabase-js
 ├── tailwind.config.js              Kinetic Dark Redux theme tokens (red accent #ff0033)
@@ -56,7 +57,7 @@ D:\Liftit\
     │   ├── dates.js                week/day helpers
     │   ├── supabase.js             client + hashPin + ALL rpc* helpers + Realtime broadcast helpers + uploadImage()
     │   ├── gymStatus.js            gym location/status constants + status normalization helpers
-    │   ├── exerciseMedia.js        optional WorkoutX GIF/media cache in LocalStorage for exercise thumbnails
+    │   ├── exerciseMedia.js        optional cached exercise GIF/media reader; direct browser WorkoutX API calls disabled for key safety
     │   ├── exifDate.js             minimal JPEG EXIF DateTimeOriginal reader + checkPhotoIsRecent()
     │   └── funnyRejects.js         old-photo rejection lines + random compliments + lastTimeNudge()
     ├── store/
@@ -118,6 +119,8 @@ The `app_save_state` RPC writes these fields back. The user object in React stat
 `{ id: 1, locations: [{ key, name, detail, status }], message, updated_by, updated_at }`.
 Statuses are `open`, `closing_soon`, `closed`. Admin updates are restricted in SQL to username `tris` with a valid PIN hash. The row is public-read and added to `supabase_realtime`, and admin saves also send a direct Realtime broadcast so connected users receive status changes immediately without refresh. The client logs a console warning if the Realtime channel cannot subscribe.
 
+`app_rate_limits` is an internal SECURITY DEFINER rate-limit bucket table. Public RPCs call `app_rate_limit(...)` server-side; anon/authenticated roles cannot read it or execute helper functions directly.
+
 ## XP system (v2 — current)
 
 Per completed set:
@@ -175,6 +178,7 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - Don't add AI workout generation. Manual lift logging only.
 - Don't add custom exercise creation in the builder — only library exercises (muscle mapping depends on it).
 - Don't add payments.
+- Don't put paid/secret third-party API keys in Vite/browser code. Anything named `VITE_*` is public in the built site; use a server/proxy first.
 - Don't redesign the bodygraph from scratch. The image is the visual source of truth; we only adjust overlays.
 - Don't change unrelated pages when asked to fix one thing.
 
@@ -199,11 +203,12 @@ In `lib/tiers.js`. Each muscle has its own level → tier mapping (Bronze I → 
 - **`base: './'` + HashRouter** required for GH Pages — don't change.
 - **Postgres RPC return-type changes** require `DROP FUNCTION` first.
 - **Storage bucket `user-content`** must be PUBLIC, otherwise image URLs 401.
+- **Storage inserts are intentionally constrained** by `supabase/schema.sql` to `avatars/<username>/<uuid>.<image-ext>` and `pumps/<username>/<uuid>.<image-ext>`, image MIME types only, max 5MB. Re-run the schema after changing upload behavior.
 - **HEIC photos** don't have parseable EXIF in our reader → falls back to `file.lastModified`. Works but less trustworthy.
 - **PWA-like camera capture** uses `<input type="file" accept="image/*" capture="environment">`. On desktop browsers this just opens a file picker.
 - **Workouts and history are PER-USER and stored in LocalStorage**, not in Supabase yet. Only the user profile + pump photos sync. To make workouts follow users across devices, lift them into Supabase later.
 - **Mock leaderboard data** (`src/data/mockLeaderboard.js`) is no longer used but kept for reference.
-- **Exercise GIF/media cache** is optional. `src/lib/exerciseMedia.js` warms `liftit.exerciseMedia.v1` from WorkoutX only when `VITE_WORKOUTX_API_KEY` exists; otherwise the builder falls back to local white-background exercise thumbnails.
+- **Exercise GIF/media cache** is optional. `src/lib/exerciseMedia.js` reads `liftit.exerciseMedia.v1` only; direct WorkoutX browser calls were removed because Vite-exposed API keys are public.
 
 ## Quick commands
 
@@ -238,7 +243,7 @@ git push
 | `store/AppContext.jsx` | The store. Reducer handles `BOOT_UNAUTHED`, `AUTH_SUCCESS`, Dianna login intro state, `LOG_WORKOUT` (computes XP, muscles, lastSessions, totalWorkouts), `SAVE_WORKOUT`, `PATCH_USER`. Exposes `actions = { signup, login, signOut, setProfilePic, saveWorkout, deleteWorkout, logWorkout }`. Debounced cloud sync via `rpcSaveState`. |
 | `lib/supabase.js` | Client + `hashPin`, RPC helpers, gym-status and leaderboard realtime subscription/broadcast helpers, and `uploadImage`. |
 | `lib/gymStatus.js` | Global gym-status location constants, default status, status colors, and normalizer. |
-| `lib/exerciseMedia.js` | Optional WorkoutX media warmer/cache for exercise GIFs, keyed by exercise name in LocalStorage. |
+| `lib/exerciseMedia.js` | Optional exercise media cache reader, keyed by exercise name in LocalStorage. No direct paid API calls from the browser. |
 | `lib/xp.js` | `RANKS`, `rankFor`, `rankIndex`, `levelFromXP`, `muscleProgress`, `applyMuscleXP`, `xpForSet`, `WORKOUT_COMPLETION_BONUS`, `PUMP_PIC_BONUS`, `sanityCheckSet`. |
 | `lib/tiers.js` | `TIERS` + `tierForLevel(level)`. Color ramp matches user's strength legend. |
 | `data/muscles.js` | Muscle group names + red-edition status colors used by preview cards. |
@@ -252,12 +257,14 @@ git push
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, and routine editor with Add from library. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
-| `supabase/schema.sql` | Schema, RPCs, storage policies. Idempotent. |
+| `.env.example` | Template for required Vite Supabase env vars. |
+| `supabase/schema.sql` | Schema, RPCs, rate-limit helpers, storage policies. Idempotent. |
 
 ## Recent changes log
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
+- **Security/env hardening:** Supabase URL/anon key moved out of source into Vite env vars and GitHub Actions secrets. Added CSP in `index.html`, broadened `.gitignore` for env files, added `.env.example`, moved `pin_hash` session storage from LocalStorage to sessionStorage, disabled direct browser WorkoutX API calls, made gym-status broadcasts refresh from the database instead of trusting client payloads, and added Supabase RPC rate limits + stricter image storage policies.
 - **Dianna custom profile:** created Supabase user `dianna` with PIN `6767` and heart avatar. Logging in as Dianna triggers a one-time smooth themed intro with a heart and the text `hello my beatiful helper`, then carries her into the app normally. Intro is login-only, not shown on refresh/boot, and does not affect other users.
 - **Polish/onboarding/fatigue pass:** Weekly Progress now charts weekly lifted weight volume instead of XP. Added global transition polish and route fade-ins. New signups go through animated avatar/emoji selection followed by Gym/Home setup (`gym_type` in Supabase). Leaderboard refreshes live through Realtime broadcast after cloud sync. Dashboard `Muscle Rankings` became `Muscle Fatigue`, calculated from recent logged muscle work with a 42-72 hour recovery decay and tap-for-estimate detail sheet. Bottom Body tab is disabled/gray for now.
 - **Gym update alert:** admin `Update message` no longer appears inside the Z status dropdown. When a new gym status message is pushed, users see a dismissible themed alert on the main screen; message seen-state is separate from opening the Z panel, and incoming messages close the panel so the alert is visible. The Z button still shows the small red unread indicator.

@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://hvadkwejztulqonqprmr.supabase.co'
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2YWRrd2VqenR1bHFvbnFwcm1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDIwNDEsImV4cCI6MjA5NjAxODA0MX0.WhA3o2QPoRYVpChBOovA0PPA_vB_3iD5gl6OccJ4vqw'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false }
@@ -76,9 +79,16 @@ let leaderboardChannel = null
 let leaderboardChannelReady = false
 
 export function subscribeToGymStatus(onChange) {
+  const refresh = async () => {
+    try {
+      onChange(await rpcGetGymStatus())
+    } catch (e) {
+      console.warn('[Liftit] Gym status refresh failed:', e.message)
+    }
+  }
   const channel = supabase
     .channel(GYM_STATUS_CHANNEL)
-    .on('broadcast', { event: 'gym_status_updated' }, payload => onChange(payload.payload))
+    .on('broadcast', { event: 'gym_status_updated' }, refresh)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'gym_status', filter: 'id=eq.1' },
@@ -181,11 +191,25 @@ export async function rpcAdminListUsers(username, pin_hash) {
 // Public bucket "user-content" must exist (see schema.sql comments).
 
 export async function uploadImage(file, folder, username) {
+  if (!['avatars', 'pumps'].includes(folder)) throw new Error('Invalid upload folder')
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
   const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(ext) ? ext : 'jpg'
-  const key = `${folder}/${username}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`
+  const contentTypeByExt = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic'
+  }
+  const contentType = file.type?.startsWith('image/') ? file.type : contentTypeByExt[safeExt]
+  if (!contentType?.startsWith('image/')) throw new Error('Only image uploads are allowed')
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image must be 5MB or smaller')
+
+  const safeUsername = String(username || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32)
+  if (!safeUsername) throw new Error('Invalid username for upload')
+  const key = `${folder}/${safeUsername}/${crypto.randomUUID()}.${safeExt}`
   const { error } = await supabase.storage.from('user-content').upload(key, file, {
-    cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg'
+    cacheControl: '3600', upsert: false, contentType
   })
   if (error) throw new Error(error.message)
   const { data } = supabase.storage.from('user-content').getPublicUrl(key)

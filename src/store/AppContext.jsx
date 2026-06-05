@@ -48,8 +48,20 @@ function saveLocalFor(username, slice) {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(all))
   } catch {}
 }
-function loadSession() { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') } catch { return null } }
-function saveSession(s) { if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s)); else localStorage.removeItem(SESSION_KEY) }
+function loadSession() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
+    localStorage.removeItem(SESSION_KEY)
+    return session
+  } catch { return null }
+}
+function saveSession(s) {
+  try {
+    localStorage.removeItem(SESSION_KEY)
+    if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s))
+    else sessionStorage.removeItem(SESSION_KEY)
+  } catch {}
+}
 
 function rolloverWeekIfNeeded(user) {
   const cur = startOfWeek().toISOString()
