@@ -39,6 +39,7 @@ D:\Liftit\
 ├── package.json                    React + Vite + Tailwind + Framer Motion + @supabase/supabase-js
 ├── tailwind.config.js              Kinetic Dark Redux theme tokens (red accent #ff0033)
 ├── vite.config.js                  base: './' for GH Pages
+├── public/assets/exercises/        optional exercise GIF demos served as static assets
 ├── supabase/schema.sql             v2 schema — RPCs + storage policies, idempotent
 └── src/
     ├── main.jsx                    HashRouter + AppProvider
@@ -288,7 +289,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
-- **Exercise GIF demos:** shared exercise thumbnails now prefer an exercise `gif` field, then cached media, then emoji/fallback pose. Logger exercise thumbnails are 56x56 and tappable to the exercise guide. Exercise guide pages now show a dark GIF demo area with `object-fit: contain` and keep the "Demo GIF coming soon" fallback when no GIF is available.
+- **Exercise GIF demos:** shared exercise thumbnails now try an exercise `gif` field, cached media, `assets/exercises/{id}.gif`, then `assets/exercises/{slugged-name}.gif`, and finally emoji/fallback pose. Logger exercise thumbnails are 56x56 and tappable to the exercise guide. Exercise guide pages use the same GIF fallback chain in a dark `object-fit: contain` demo area and keep "Demo GIF coming soon" when no GIF file is available.
 - **Workout UI visual pass:** active workout logger, exercise guide, and routine list were restyled using only Liftit's red/charcoal theme. Added shared `ExerciseThumb` for cached exercise media with a red fallback pose, routine cards now show exercise previews, the logger has a compact timer/progress header plus prev/lbs/reps set rows, and exercise pages use real About/Tips/Mistakes tabs with a muscles-worked visual. No auth, schema, dashboard, navigation, XP, or logging data logic changed.
 - **Manual PR entry + signup/podium polish:** Profile Big 3 PRs are now manually editable; tapping Bench Press, Squat, or Deadlift opens weight/reps entry and displays animated PR cards. Signup uses a dedicated `Sign up now!` button under sign-in and requires email + exactly 6 digit PIN. Body tab/page has a red Coming Soon tape treatment. Leaderboard top 3 render as a podium with native celebration/fire effects; raw LottieFiles page links were not embedded because they are not direct animation asset URLs.
 - **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.

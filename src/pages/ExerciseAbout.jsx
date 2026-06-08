@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import Header from '../components/Header.jsx'
-import ExerciseThumb from '../components/ExerciseThumb.jsx'
+import ExerciseThumb, { ExerciseGifImage } from '../components/ExerciseThumb.jsx'
 import { EXERCISE_BY_ID } from '../data/exerciseLibrary.js'
 
 const TABS = [
@@ -39,9 +39,11 @@ export default function ExerciseAbout() {
       <Header title={ex.name} back="/workouts" />
 
       <div className="about-video-area mb-4">
-        {ex.gif ? (
-          <img src={ex.gif} loading="lazy" alt="" className="about-gif" />
-        ) : (
+        <ExerciseGifImage
+          exercise={ex}
+          className="about-gif"
+          objectFit="contain"
+          fallback={
           <div className="about-video-placeholder">
             {ex.emoji ? (
               <span className="text-5xl" aria-hidden="true">{ex.emoji}</span>
@@ -50,7 +52,8 @@ export default function ExerciseAbout() {
             )}
             <span className="metric-label mt-3">Demo GIF coming soon</span>
           </div>
-        )}
+          }
+        />
       </div>
 
       <section className="glass-card rounded-3xl overflow-hidden mb-4">
