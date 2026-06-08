@@ -36,7 +36,11 @@ export function exerciseGifSources(exercise) {
     exercise?.gif,
     exercise?.gifUrl,
     id ? `assets/exercises/${id}.gif` : null,
-    nameSlug ? `assets/exercises/${nameSlug}.gif` : null
+    id ? `assets/exercises/${id}.jpg` : null,
+    id ? `assets/exercises/${id}.png` : null,
+    nameSlug ? `assets/exercises/${nameSlug}.gif` : null,
+    nameSlug ? `assets/exercises/${nameSlug}.jpg` : null,
+    nameSlug ? `assets/exercises/${nameSlug}.png` : null
   ]
   return [...new Set(paths.map(normalizeAssetPath).filter(Boolean))]
 }

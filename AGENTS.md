@@ -40,6 +40,7 @@ D:\Liftit\
 ├── tailwind.config.js              Kinetic Dark Redux theme tokens (red accent #ff0033)
 ├── vite.config.js                  base: './' for GH Pages
 ├── public/assets/exercises/        optional exercise GIF demos served as static assets
+├── scripts/fetch-gifs.mjs          copies matching free-exercise-db demo images into public/assets/exercises
 ├── supabase/schema.sql             v2 schema — RPCs + storage policies, idempotent
 └── src/
     ├── main.jsx                    HashRouter + AppProvider
@@ -270,7 +271,7 @@ git push
 | `components/Avatar.jsx` | `<Avatar user size ring />`. Handles URL vs emoji vs initial. |
 | `components/ActiveWorkoutLayer.jsx` | Global active-workout guard. Prompts once before leaving an active logger, can run workout in background, and shows a top progress banner that returns to the logger. |
 | `components/VerifiedName.jsx` | Username + glowing verified tick shown when `zionVerified` is true. |
-| `components/ExerciseThumb.jsx` | Shared exercise thumbnail used by routine cards, builder library rows, logger cards, and exercise guide pages. Prefers exercise `gif`, then cached media, then emoji/fallback pose. |
+| `components/ExerciseThumb.jsx` | Shared exercise thumbnail used by routine cards, builder library rows, logger cards, and exercise guide pages. Prefers exercise `gif`, cached media, then static `.gif/.jpg/.png` assets before emoji/fallback pose. |
 | `components/AppTopBar.jsx` | Fixed top brand bar matching the Stitch red screenshots; glowing Z opens gym status. Admin controls and account list appear only for `tris`; admin update messages appear as a themed on-screen alert outside the Z panel. |
 | `components/SignupOnboarding.jsx` | Animated post-signup flow: upload photo or choose emoji, then choose Gym/Home training setup. |
 | `components/FrontBackBodyMap.jsx` | THE bodygraph. Image + overlays + full editor (drag/draw/delete/relabel) gated behind `EDIT_MODE` constant. |
@@ -278,6 +279,7 @@ git push
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, Public/Private profile visibility toggle, and shared exercise thumbnails. |
 | `pages/Workouts.jsx` | Saved routine list with preview exercise rows, public/private chips, estimated duration, and edit/delete/start actions. |
 | `pages/WorkoutLogger.jsx` | Active session logger with timer/progress header, tappable exercise GIF/thumbnail cards, prev/lbs/reps set rows, numeric text inputs, and `FinishModal` pump-pic XP flow. |
+| `scripts/fetch-gifs.mjs` | Utility script: `node scripts/fetch-gifs.mjs <free-exercise-db-path>` copies matching 0/1 GIF/JPG/PNG demo files to `public/assets/exercises/{exerciseId}.{ext}`. |
 | `pages/ExerciseAbout.jsx` | Exercise guide page with About/Tips/Mistakes tabs, shared thumbnail hero, and target-area rows. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
@@ -290,6 +292,7 @@ git push
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
 - **Exercise About cleanup:** removed the standalone demo-coming-soon block and the separate Muscles Worked visual from exercise guide pages. About now keeps the top guide card, tabs, and Target Areas only. Logger/top thumbnails still try GIF paths and gracefully fall back if no file exists.
+- **Exercise media import script:** added `scripts/fetch-gifs.mjs` for `free-exercise-db`. It copies matching exercise demo images into `public/assets/exercises`; thumbnails now also try `.jpg` and `.png` static files, because that source repo mostly ships JPG frames rather than actual GIFs.
 - **Workout UI visual pass:** active workout logger, exercise guide, and routine list were restyled using only Liftit's red/charcoal theme. Added shared `ExerciseThumb` for cached exercise media with a red fallback pose, routine cards now show exercise previews, the logger has a compact timer/progress header plus prev/lbs/reps set rows, and exercise pages use real About/Tips/Mistakes tabs with a muscles-worked visual. No auth, schema, dashboard, navigation, XP, or logging data logic changed.
 - **Manual PR entry + signup/podium polish:** Profile Big 3 PRs are now manually editable; tapping Bench Press, Squat, or Deadlift opens weight/reps entry and displays animated PR cards. Signup uses a dedicated `Sign up now!` button under sign-in and requires email + exactly 6 digit PIN. Body tab/page has a red Coming Soon tape treatment. Leaderboard top 3 render as a podium with native celebration/fire effects; raw LottieFiles page links were not embedded because they are not direct animation asset URLs.
 - **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.
