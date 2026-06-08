@@ -16,12 +16,13 @@ const MUSCLE_POSE = {
 
 export default function ExerciseThumb({ exercise, size = 'md', className = '' }) {
   const media = getCachedExerciseMedia(exercise?.name)
-  const dims = size === 'lg' ? 'w-20 h-20 rounded-3xl' : size === 'sm' ? 'w-11 h-11 rounded-2xl' : 'w-14 h-14 rounded-2xl'
+  const gifSrc = exercise?.gif || media?.gifUrl
+  const dims = size === 'log' ? 'log-ex-thumb' : size === 'lg' ? 'w-20 h-20 rounded-3xl' : size === 'sm' ? 'w-11 h-11 rounded-2xl' : 'w-14 h-14 rounded-2xl'
 
-  if (media?.gifUrl) {
+  if (gifSrc) {
     return (
       <img
-        src={media.gifUrl}
+        src={gifSrc}
         alt=""
         className={`${dims} object-cover bg-white shrink-0 ${className}`}
         loading="lazy"
@@ -29,10 +30,18 @@ export default function ExerciseThumb({ exercise, size = 'md', className = '' })
     )
   }
 
+  if (exercise?.emoji) {
+    return (
+      <div className={`${dims} log-ex-thumb-fallback flex items-center justify-center overflow-hidden shrink-0 ${className}`}>
+        <span aria-hidden="true">{exercise.emoji}</span>
+      </div>
+    )
+  }
+
   const pose = MUSCLE_POSE[exercise?.primaryMuscle] || 'lift'
 
   return (
-    <div className={`${dims} bg-white/95 flex items-center justify-center overflow-hidden shrink-0 ${className}`}>
+    <div className={`${dims} log-ex-thumb-fallback flex items-center justify-center overflow-hidden shrink-0 ${className}`}>
       <div className={`exercise-stick exercise-stick-${pose}`} aria-hidden="true">
         <span className="head" />
         <span className="body" />

@@ -38,6 +38,21 @@ export default function ExerciseAbout() {
     <div className="pb-8">
       <Header title={ex.name} back="/workouts" />
 
+      <div className="about-video-area mb-4">
+        {ex.gif ? (
+          <img src={ex.gif} loading="lazy" alt="" className="about-gif" />
+        ) : (
+          <div className="about-video-placeholder">
+            {ex.emoji ? (
+              <span className="text-5xl" aria-hidden="true">{ex.emoji}</span>
+            ) : (
+              <ExerciseThumb exercise={ex} size="lg" />
+            )}
+            <span className="metric-label mt-3">Demo GIF coming soon</span>
+          </div>
+        )}
+      </div>
+
       <section className="glass-card rounded-3xl overflow-hidden mb-4">
         <div className="p-5 flex items-center gap-4 bg-bg-950/25 border-b border-white/10">
           <ExerciseThumb exercise={ex} size="lg" />

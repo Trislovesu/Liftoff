@@ -157,7 +157,13 @@ export default function WorkoutLogger() {
           return (
             <section key={ex.id} className="glass-card rounded-3xl overflow-hidden hover:border-accent/35 transition">
               <div className="p-4 flex items-center gap-3 border-b border-white/10 bg-bg-950/20">
-                <ExerciseThumb exercise={ex} size="md" />
+                {ex.libraryId ? (
+                  <Link to={`/exercise/${ex.libraryId}`} className="shrink-0" aria-label={`Open ${ex.name} guide`}>
+                    <ExerciseThumb exercise={ex} size="log" />
+                  </Link>
+                ) : (
+                  <ExerciseThumb exercise={ex} size="log" />
+                )}
                 <div className="min-w-0 flex-1">
                   <h2 className="text-xl font-extrabold truncate">{ex.name}</h2>
                   <div className="flex gap-1.5 mt-1 overflow-hidden">
