@@ -94,7 +94,7 @@ D:\Liftit\
         ├── Body.jsx                bodygraph + rankings + gallery sub-tab
         ├── Gallery.jsx             pump pic feed, upload with EXIF check
         ├── Leaderboard.jsx         podium top 3 + normal rows, avatars, clickable player rows, 3 sort modes
-        ├── ExerciseAbout.jsx       /exercise/:id — GIF demo area with fallback, exercise guide tabs, muscles-worked visual, target areas
+        ├── ExerciseAbout.jsx       /exercise/:id — exercise guide tabs and target areas
         ├── PublicProfile.jsx       /u/:username public profile view: featured PR, body weight, public routines
         └── Profile.jsx             avatar upload modal (or emoji), verification code modal, body weight, featured PR, level/rank, clickable history, sign out
 ```
@@ -278,7 +278,7 @@ git push
 | `pages/WorkoutBuilder.jsx` | Custom routine flow from Stitch: home/search, create-new muscle selection up to 3, organized library, routine editor with Add from library, Public/Private profile visibility toggle, and shared exercise thumbnails. |
 | `pages/Workouts.jsx` | Saved routine list with preview exercise rows, public/private chips, estimated duration, and edit/delete/start actions. |
 | `pages/WorkoutLogger.jsx` | Active session logger with timer/progress header, tappable exercise GIF/thumbnail cards, prev/lbs/reps set rows, numeric text inputs, and `FinishModal` pump-pic XP flow. |
-| `pages/ExerciseAbout.jsx` | Exercise guide page with GIF demo area/fallback, About/Tips/Mistakes tabs, shared thumbnail hero, muscles-worked visual, and target-area rows. |
+| `pages/ExerciseAbout.jsx` | Exercise guide page with About/Tips/Mistakes tabs, shared thumbnail hero, and target-area rows. |
 | `pages/WorkoutLogger.jsx` | Log sets. `FinishModal` asks for pump pic → Supabase storage → +75 XP. |
 | `pages/Gallery.jsx` | Pump pic feed + standalone upload. |
 | `pages/PublicProfile.jsx` | Public player profile for `/u/:username`; shows body weight recency, Big 3 featured PRs, and public routine snapshots. |
@@ -289,7 +289,7 @@ git push
 
 Newest at top. Keep this trimmed to the last ~10 entries — older context is captured in the file map / sections above.
 
-- **Exercise GIF demos:** shared exercise thumbnails now try an exercise `gif` field, cached media, `assets/exercises/{id}.gif`, then `assets/exercises/{slugged-name}.gif`, and finally emoji/fallback pose. Logger exercise thumbnails are 56x56 and tappable to the exercise guide. Exercise guide pages use the same GIF fallback chain in a dark `object-fit: contain` demo area and keep "Demo GIF coming soon" when no GIF file is available.
+- **Exercise About cleanup:** removed the standalone demo-coming-soon block and the separate Muscles Worked visual from exercise guide pages. About now keeps the top guide card, tabs, and Target Areas only. Logger/top thumbnails still try GIF paths and gracefully fall back if no file exists.
 - **Workout UI visual pass:** active workout logger, exercise guide, and routine list were restyled using only Liftit's red/charcoal theme. Added shared `ExerciseThumb` for cached exercise media with a red fallback pose, routine cards now show exercise previews, the logger has a compact timer/progress header plus prev/lbs/reps set rows, and exercise pages use real About/Tips/Mistakes tabs with a muscles-worked visual. No auth, schema, dashboard, navigation, XP, or logging data logic changed.
 - **Manual PR entry + signup/podium polish:** Profile Big 3 PRs are now manually editable; tapping Bench Press, Squat, or Deadlift opens weight/reps entry and displays animated PR cards. Signup uses a dedicated `Sign up now!` button under sign-in and requires email + exactly 6 digit PIN. Body tab/page has a red Coming Soon tape treatment. Leaderboard top 3 render as a podium with native celebration/fire effects; raw LottieFiles page links were not embedded because they are not direct animation asset URLs.
 - **Big 3 PRs + active workout background:** featured PRs are now limited to Bench Press, Squat, and Deadlift, and users can show all three. Active workouts prompt once when leaving the logger; choosing background shows a top progress banner with elapsed time and set progress that jumps back into the workout. Gym status alerts are now solid animated boxes. Admin account list SQL was qualified to avoid ambiguous `username` references.
